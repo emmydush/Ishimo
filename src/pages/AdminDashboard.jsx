@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Users, Briefcase, FileText, Bell, 
   LogOut, Trash2, CheckCircle, XCircle, LayoutDashboard,
-  AlertTriangle, RefreshCw
+  AlertTriangle, RefreshCw, Activity
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -383,6 +383,51 @@ const AdminDashboard = () => {
           </div>
         );
 
+      case 'logs':
+        return (
+          <div className="glass-panel" style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                  <th style={{ padding: '16px' }}>Timestamp</th>
+                  <th style={{ padding: '16px' }}>User</th>
+                  <th style={{ padding: '16px' }}>Action</th>
+                  <th style={{ padding: '16px' }}>Entity</th>
+                  <th style={{ padding: '16px' }}>IP / Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map(log => {
+                  let actionColor = 'muted';
+                  if (log.action === 'login' || log.action === 'register') actionColor = 'emerald';
+                  else if (log.action.includes('update') || log.action.includes('change')) actionColor = 'gold';
+                  else if (log.action.includes('create') || log.action === 'job_request') actionColor = 'gold'; // Or some other color
+
+                  return (
+                    <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '16px', color: 'var(--text-muted)' }}>
+                        {new Date(log.created_at).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ fontWeight: 600 }}>{log.user_email || 'anonymous'}</div>
+                        {log.user_id && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {log.user_id}</div>}
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <Badge type={actionColor}>{log.action}</Badge>
+                      </td>
+                      <td style={{ padding: '16px', textTransform: 'capitalize' }}>{log.entity || '—'}</td>
+                      <td style={{ padding: '16px' }}>
+                        <div>{log.detail}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IP: {log.ip || 'unknown'}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -411,6 +456,7 @@ const AdminDashboard = () => {
           <SidebarItem icon={<FileText />} label="Jobs" active={activeTab === 'jobs'} onClick={() => changeTab('jobs')} />
           <SidebarItem icon={<CheckCircle />} label="Applications" active={activeTab === 'applications'} onClick={() => changeTab('applications')} />
           <SidebarItem icon={<Bell />} label="Notifications" active={activeTab === 'notifications'} onClick={() => changeTab('notifications')} />
+          <SidebarItem icon={<Activity />} label="Activity Logs" active={activeTab === 'logs'} onClick={() => changeTab('logs')} />
         </div>
 
         <div style={{ padding: '20px', borderTop: '1px solid var(--border-color)' }}>

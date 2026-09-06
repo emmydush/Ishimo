@@ -93,7 +93,32 @@ setTimeout(() => {
   `, (err) => {
     if (err) console.error('Migration error (notifications):', err.message);
   });
+
+  // Activity logs table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      user_email TEXT,
+      action TEXT NOT NULL,
+      entity TEXT,
+      detail TEXT,
+      ip TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => {
+    if (err) console.error('Migration error (activity_logs):', err.message);
+  });
 }, 500);
+
+// Helper: log a user activity
+const logActivity = (userId, userEmail, action, entity, detail, ip) => {
+  db.run(
+    'INSERT INTO activity_logs (user_id, user_email, action, entity, detail, ip) VALUES (?, ?, ?, ?, ?, ?)',
+    [userId || null, userEmail || 'anonymous', action, entity || null, detail || null, ip || null],
+    (err) => { if (err) console.error('Failed to log activity:', err.message); }
+  );
+};
 
 // Helper: create a notification for a user
 const createNotification = (userId, type, message) => {
@@ -160,6 +185,7 @@ app.post('/api/register/employer', authLimiter, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create employer profile' });
           }
           db.run('COMMIT');
+          logActivity(userId, email, 'register', 'employer', `Employer registered from ${location}`, req.ip);
           res.status(201).json({ success: true, userId, role: 'employer' });
         });
       });
@@ -199,6 +225,7 @@ app.post('/api/register/worker', authLimiter, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create worker profile' });
           }
           db.run('COMMIT');
+          logActivity(userId, email, 'register', 'worker', `Worker registered from ${location || 'unknown'}`, req.ip);
           res.status(201).json({ success: true, userId, role: 'worker' });
         });
       });
@@ -218,6 +245,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
 
   // Check for admin credentials first
   if (email === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    logActivity(null, 'admin', 'login', 'admin', 'Admin logged in', req.ip);
     return res.json({ success: true, role: 'admin', token: ADMIN_TOKEN });
   }
 
@@ -239,6 +267,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
       if (user.role === 'worker') {
         db.get('SELECT status FROM workers WHERE user_id = ?', [user.id], (err, worker) => {
           if (err) return res.status(500).json({ error: 'Server error' });
+          logActivity(user.id, email, 'login', 'worker', 'Worker logged in', req.ip);
           res.json({
             success: true,
             userId: user.id,
@@ -247,6 +276,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
           });
         });
       } else {
+        logActivity(user.id, email, 'login', user.role, `${user.role} logged in`, req.ip);
         res.json({ success: true, userId: user.id, role: user.role });
       }
     } catch {
@@ -294,6 +324,7 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
           return res.status(500).json({ error: 'Failed to update worker status' });
         }
         db.run('COMMIT');
+        logActivity(userId, null, 'profile_complete', 'worker', 'Worker completed onboarding profile', req.ip);
         res.status(200).json({ success: true, message: 'Profile completed successfully' });
       });
     });
@@ -356,6 +387,7 @@ app.post('/api/jobs/request', writeLimiter, (req, res) => {
       if (err) return res.status(500).json({ error: 'Failed to send request' });
       // Notify worker of new job request
       createNotification(workerId, 'job_request', 'An employer has sent you a job request. Check your dashboard to accept or decline.');
+      logActivity(employerId, null, 'job_request', 'job', `Employer requested worker ${workerId}`, req.ip);
       res.status(201).json({ success: true, message: 'Request sent successfully' });
     });
   });
@@ -425,6 +457,7 @@ app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
       // Notify employer of worker response
       const action = status === 'accepted' ? 'accepted' : 'declined';
       createNotification(reqRow.employer_id, 'request_response', `A worker has ${action} your job request.`);
+      logActivity(workerId, null, 'request_response', 'job_request', `Worker ${action} job request ${jobId}`, req.ip);
       res.json({ success: true, message: 'Status updated' });
     });
   });
@@ -471,6 +504,7 @@ app.put('/api/worker/:id/profile', writeLimiter, (req, res) => {
           return res.status(500).json({ error: 'Failed to update professional info' });
         }
         db.run('COMMIT');
+        logActivity(workerId, null, 'update_profile', 'worker', 'Worker updated their profile', req.ip);
         res.json({ success: true });
       });
     });
@@ -495,6 +529,7 @@ app.put('/api/worker/:id/settings', writeLimiter, (req, res) => {
     const newHash = await bcrypt.hash(newPassword, 10);
     db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, userId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update password' });
+      logActivity(userId, null, 'change_password', 'user', 'Worker changed password', req.ip);
       res.json({ success: true });
     });
   });
@@ -522,6 +557,7 @@ app.put('/api/employer/:id/profile', writeLimiter, (req, res) => {
   db.run('UPDATE employers SET phone = ?, location = ? WHERE user_id = ?', [phone, location, userId], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to update profile' });
     if (this.changes === 0) return res.status(404).json({ error: 'Employer not found' });
+    logActivity(userId, null, 'update_profile', 'employer', 'Employer updated their profile', req.ip);
     res.json({ success: true });
   });
 });
@@ -541,6 +577,7 @@ app.put('/api/employer/:id/settings', writeLimiter, (req, res) => {
     const newHash = await bcrypt.hash(newPassword, 10);
     db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, userId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update password' });
+      logActivity(userId, null, 'change_password', 'user', 'Employer changed password', req.ip);
       res.json({ success: true });
     });
   });
@@ -618,6 +655,7 @@ app.post('/api/jobs', writeLimiter, (req, res) => {
         console.error('Job insertion error:', err);
         return res.status(500).json({ error: 'Failed to create job posting.' });
       }
+      logActivity(employerId, null, 'create_job', 'job', `Employer posted job: ${cleanTitle}`, req.ip);
       res.status(201).json({ success: true, jobId: this.lastID, message: 'Job posted successfully.' });
     });
   });
@@ -676,6 +714,7 @@ app.post('/api/jobs/:id/apply', writeLimiter, (req, res) => {
         if (err) return res.status(500).json({ error: 'Failed to submit application' });
         // Notify employer of new application
         createNotification(job.employer_id, 'new_application', `A worker has applied to your job posting: "${job.title}".`);
+        logActivity(workerId, null, 'apply_job', 'job_application', `Worker applied for job ${jobId}`, req.ip);
         res.status(201).json({ success: true, message: 'Application submitted successfully' });
       });
     });
@@ -911,6 +950,19 @@ app.delete('/api/admin/notifications/:id', adminLimiter, adminAuth, (req, res) =
   db.run('DELETE FROM notifications WHERE id = ?', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete' });
     res.json({ success: true });
+  });
+});
+
+// A14. Get Activity Logs
+app.get('/api/admin/logs', adminLimiter, adminAuth, (req, res) => {
+  const q = `
+    SELECT * FROM activity_logs 
+    ORDER BY created_at DESC 
+    LIMIT 500
+  `;
+  db.all(q, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    res.json(rows);
   });
 });
 
