@@ -16,6 +16,8 @@ const WorkerPublicProfile = () => {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [requested, setRequested] = useState(false);
+  const [applications, setApplications] = useState([]);
+  const [updatingStatus, setUpdatingStatus] = useState(null);
 
   useEffect(() => {
     const fetchWorker = async () => {
@@ -34,6 +36,18 @@ const WorkerPublicProfile = () => {
       }
     };
     fetchWorker();
+
+    // Fetch employer's applications for this worker
+    const employerId = localStorage.getItem('userId');
+    if (employerId) {
+      fetch(`http://localhost:3000/api/employer/${employerId}/applications`)
+        .then(res => res.json())
+        .then(data => {
+          const workerApps = data.filter(app => app.worker_id === parseInt(id));
+          setApplications(workerApps);
+        })
+        .catch(err => console.error('Error fetching applications:', err));
+    }
   }, [id, navigate]);
 
   const handleRequest = async () => {
@@ -57,6 +71,33 @@ const WorkerPublicProfile = () => {
       showToast('Network error while sending request', 'error');
     } finally {
       setRequesting(false);
+    }
+  };
+
+  const handleUpdateApplicationStatus = async (applicationId, status) => {
+    setUpdatingStatus(applicationId);
+    try {
+      const res = await fetch(`http://localhost:3000/api/applications/${applicationId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Application ${status} successfully!`, 'success');
+        // Refresh applications
+        const employerId = localStorage.getItem('userId');
+        const resApps = await fetch(`http://localhost:3000/api/employer/${employerId}/applications`);
+        const dataApps = await resApps.json();
+        const workerApps = dataApps.filter(app => app.worker_id === parseInt(id));
+        setApplications(workerApps);
+      } else {
+        showToast(data.error || 'Failed to update status', 'error');
+      }
+    } catch (err) {
+      showToast('Network error while updating status', 'error');
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
@@ -196,6 +237,53 @@ const WorkerPublicProfile = () => {
                 </div>
               </div>
             </div>
+
+            {/* Applications from this worker */}
+            {applications.length > 0 && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h4 style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Applications to Your Jobs
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {applications.map(app => (
+                    <div key={app.application_id} style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '4px' }}>{app.job_title}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status: {app.status}</div>
+                      </div>
+                      {app.status === 'pending' ? (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleUpdateApplicationStatus(app.application_id, 'rejected')}
+                            disabled={updatingStatus === app.application_id}
+                            className="btn-outline"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444', opacity: updatingStatus === app.application_id ? 0.6 : 1 }}
+                          >
+                            {updatingStatus === app.application_id ? 'Processing...' : 'Reject'}
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleUpdateApplicationStatus(app.application_id, 'accepted')}
+                            disabled={updatingStatus === app.application_id}
+                            className="btn-premium"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000', opacity: updatingStatus === app.application_id ? 0.6 : 1 }}
+                          >
+                            {updatingStatus === app.application_id ? 'Processing...' : 'Accept'}
+                          </motion.button>
+                        </div>
+                      ) : (
+                        <span style={{ padding: '4px 12px', background: app.status === 'accepted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: app.status === 'accepted' ? 'var(--accent-emerald)' : '#ef4444', borderRadius: '8px', fontWeight: 500, fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                          {app.status}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
 
           {/* Right: Detailed Info */}

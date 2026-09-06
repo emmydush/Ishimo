@@ -753,12 +753,13 @@ app.post('/api/jobs/:id/apply', writeLimiter, (req, res) => {
 app.get('/api/employer/:id/applications', (req, res) => {
   const employerId = req.params.id;
   const query = `
-    SELECT 
-      ja.id as application_id, 
-      ja.status, 
-      ja.created_at, 
-      j.title as job_title, 
-      w.full_name as worker_name, 
+    SELECT
+      ja.id as application_id,
+      ja.status,
+      ja.created_at,
+      j.id as job_id,
+      j.title as job_title,
+      w.full_name as worker_name,
       w.user_id as worker_id,
       wp.skills
     FROM job_applications ja
@@ -771,6 +772,36 @@ app.get('/api/employer/:id/applications', (req, res) => {
   db.all(query, [employerId], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Failed to fetch applications' });
     res.json(rows);
+  });
+});
+
+// 19.5. Update job application status (Employer accepts/rejects worker)
+app.put('/api/applications/:id/status', writeLimiter, (req, res) => {
+  const applicationId = parseInt(req.params.id, 10);
+  const status = sanitize(req.body.status);
+
+  if (!['accepted', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  // Get application details to verify ownership and notify worker
+  db.get(`
+    SELECT ja.worker_id, j.employer_id, j.title
+    FROM job_applications ja
+    JOIN jobs j ON ja.job_id = j.id
+    WHERE ja.id = ?
+  `, [applicationId], (err, app) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    if (!app) return res.status(404).json({ error: 'Application not found' });
+
+    db.run('UPDATE job_applications SET status = ? WHERE id = ?', [status, applicationId], function(err) {
+      if (err) return res.status(500).json({ error: 'Failed to update status' });
+      // Notify worker of employer decision
+      const action = status === 'accepted' ? 'accepted' : 'rejected';
+      createNotification(app.worker_id, 'application_response', `An employer has ${action} your application for "${app.title}".`);
+      logActivity(app.employer_id, null, 'update_application_status', 'job_application', `Employer ${action} application ${applicationId}`, req.ip);
+      res.json({ success: true, message: 'Status updated' });
+    });
   });
 });
 
@@ -1029,4 +1060,20 @@ app.put('/api/notifications/:userId/read-all', (req, res) => {
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
+});
+
+// Keep the process alive
+server.on('error', (err) => {
+  console.error('Server error:', err);
+});
+
+// Prevent the process from exiting
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Keep server running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Keep server running
 });

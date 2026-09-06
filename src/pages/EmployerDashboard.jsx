@@ -81,6 +81,29 @@ const EmployerDashboard = () => {
     }
   };
 
+  const handleUpdateApplicationStatus = async (applicationId, status) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/applications/${applicationId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast(`Application ${status} successfully!`, 'success');
+        // Refresh applications
+        const employerId = localStorage.getItem('userId');
+        const resApps = await fetch(`http://localhost:3000/api/employer/${employerId}/applications`);
+        const dataApps = await resApps.json();
+        setJobApplications(dataApps);
+      } else {
+        showToast(data.error || 'Failed to update status', 'error');
+      }
+    } catch (err) {
+      showToast('Network error while updating status', 'error');
+    }
+  };
+
   const filteredWorkers = workers.filter(w => 
     w.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     w.skills.join(' ').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -313,13 +336,41 @@ const EmployerDashboard = () => {
                                 <div style={{ fontWeight: 600 }}>{app.worker_name}</div>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status: {app.status}</div>
                               </div>
-                              <button 
-                                onClick={() => navigate(`/worker/${app.worker_id}`)}
-                                className="btn-outline" 
-                                style={{ padding: '6px 16px', fontSize: '0.85rem' }}
-                              >
-                                View Profile
-                              </button>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                {app.status === 'pending' ? (
+                                  <>
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={() => handleUpdateApplicationStatus(app.application_id, 'rejected')}
+                                      className="btn-outline"
+                                      style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444' }}
+                                    >
+                                      Reject
+                                    </motion.button>
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={() => handleUpdateApplicationStatus(app.application_id, 'accepted')}
+                                      className="btn-premium"
+                                      style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000' }}
+                                    >
+                                      Accept
+                                    </motion.button>
+                                  </>
+                                ) : (
+                                  <span style={{ padding: '4px 12px', background: app.status === 'accepted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: app.status === 'accepted' ? 'var(--accent-emerald)' : '#ef4444', borderRadius: '8px', fontWeight: 500, fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                                    {app.status}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => navigate(`/worker/${app.worker_id}`)}
+                                  className="btn-outline"
+                                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                                >
+                                  View Profile
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
