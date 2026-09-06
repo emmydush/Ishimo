@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 const db = require('./database');
 
 const app = express();
@@ -33,6 +34,42 @@ const sanitizeNumber = (value) => {
 
 // Basic email format check
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Rate Limiters ────────────────────────────────────────────────────────────
+const makeLimit = (windowMinutes, max, message) =>
+  rateLimit({
+    windowMs: windowMinutes * 60 * 1000,
+    max,
+    standardHeaders: true,   // Return RateLimit-* headers
+    legacyHeaders: false,
+    handler: (req, res) =>
+      res.status(429).json({ error: message }),
+  });
+
+// 1. Auth: login + register — 10 attempts per 15 min per IP
+const authLimiter = makeLimit(
+  15, 10,
+  'Too many attempts. Please wait 15 minutes before trying again.'
+);
+
+// 2. Write operations: profile updates, job posting, applications — 30 per 10 min
+const writeLimiter = makeLimit(
+  10, 30,
+  'Too many requests. Please slow down and try again shortly.'
+);
+
+// 3. Public reads: job listings, worker listings — 120 per minute
+const readLimiter = makeLimit(
+  1, 120,
+  'Too many requests. Please try again in a moment.'
+);
+
+// 4. Admin endpoints — 60 per 5 min (internal usage but still guarded)
+const adminLimiter = makeLimit(
+  5, 60,
+  'Too many admin requests. Please wait before retrying.'
+);
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Migrations: add columns / tables for existing databases
@@ -95,7 +132,7 @@ app.get('/', (req, res) => {
 });
 
 // 1. Register Employer
-app.post('/api/register/employer', async (req, res) => {
+app.post('/api/register/employer', authLimiter, async (req, res) => {
   const email    = sanitize(req.body.email).toLowerCase();
   const password = (req.body.password || '').trim();
   const phone    = sanitize(req.body.phone);
@@ -133,7 +170,7 @@ app.post('/api/register/employer', async (req, res) => {
 });
 
 // 2. Register Worker
-app.post('/api/register/worker', async (req, res) => {
+app.post('/api/register/worker', authLimiter, async (req, res) => {
   const fullName = sanitize(req.body.fullName);
   const email    = sanitize(req.body.email).toLowerCase();
   const password = (req.body.password || '').trim();
@@ -172,7 +209,7 @@ app.post('/api/register/worker', async (req, res) => {
 });
 
 // 3. Login
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authLimiter, async (req, res) => {
   const email    = sanitize(req.body.email).toLowerCase();
   const password = (req.body.password || '').trim();
   if (!email || !password) {
@@ -219,7 +256,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // 4. Worker Onboarding (Profile Completion)
-app.post('/api/worker/profile', upload.fields([
+app.post('/api/worker/profile', writeLimiter, upload.fields([
   { name: 'idPhoto', maxCount: 1 },
   { name: 'passportPhoto', maxCount: 1 }
 ]), (req, res) => {
@@ -264,7 +301,7 @@ app.post('/api/worker/profile', upload.fields([
 });
 
 // 4. Get Available Workers
-app.get('/api/workers', (req, res) => {
+app.get('/api/workers', readLimiter, (req, res) => {
   const query = `
     SELECT 
       w.user_id as id, 
@@ -304,7 +341,7 @@ app.get('/api/workers', (req, res) => {
 });
 
 // 5. Create a Job Request (Employer -> Worker)
-app.post('/api/jobs/request', (req, res) => {
+app.post('/api/jobs/request', writeLimiter, (req, res) => {
   const employerId = parseInt(req.body.employerId, 10);
   const workerId   = parseInt(req.body.workerId, 10);
 
@@ -369,7 +406,7 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
 });
 
 // 7. Update Job Request Status (Accept/Decline)
-app.put('/api/jobs/:jobId/status', (req, res) => {
+app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
   const jobId    = parseInt(req.params.jobId, 10);
   const status   = sanitize(req.body.status);
   const workerId = parseInt(req.body.workerId, 10);
@@ -410,7 +447,7 @@ app.get('/api/worker/:id/profile', (req, res) => {
 });
 
 // 9. Update Worker Profile
-app.put('/api/worker/:id/profile', (req, res) => {
+app.put('/api/worker/:id/profile', writeLimiter, (req, res) => {
   const workerId   = parseInt(req.params.id, 10);
   const full_name  = sanitize(req.body.full_name);
   const phone      = sanitize(req.body.phone);
@@ -441,7 +478,7 @@ app.put('/api/worker/:id/profile', (req, res) => {
 });
 
 // 10. Update Worker Settings (Password)
-app.put('/api/worker/:id/settings', (req, res) => {
+app.put('/api/worker/:id/settings', writeLimiter, (req, res) => {
   const userId          = parseInt(req.params.id, 10);
   const currentPassword = (req.body.currentPassword || '').trim();
   const newPassword     = (req.body.newPassword || '').trim();
@@ -474,7 +511,7 @@ app.get('/api/employer/:id/profile', (req, res) => {
 });
 
 // 12. Update Employer Profile
-app.put('/api/employer/:id/profile', (req, res) => {
+app.put('/api/employer/:id/profile', writeLimiter, (req, res) => {
   const userId   = parseInt(req.params.id, 10);
   const phone    = sanitize(req.body.phone);
   const location = sanitize(req.body.location);
@@ -490,7 +527,7 @@ app.put('/api/employer/:id/profile', (req, res) => {
 });
 
 // 13. Update Employer Settings (Password)
-app.put('/api/employer/:id/settings', (req, res) => {
+app.put('/api/employer/:id/settings', writeLimiter, (req, res) => {
   const userId          = parseInt(req.params.id, 10);
   const currentPassword = (req.body.currentPassword || '').trim();
   const newPassword     = (req.body.newPassword || '').trim();
@@ -552,7 +589,7 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
 });
 
 // 15. Create a new job posting (Employer)
-app.post('/api/jobs', (req, res) => {
+app.post('/api/jobs', writeLimiter, (req, res) => {
   const employerId  = parseInt(req.body.employerId, 10);
   const cleanTitle  = sanitize(req.body.title);
   const cleanDesc   = sanitize(req.body.description);
@@ -587,7 +624,7 @@ app.post('/api/jobs', (req, res) => {
 });
 
 // 16. Get all open job postings (for Workers to browse)
-app.get('/api/jobs', (req, res) => {
+app.get('/api/jobs', readLimiter, (req, res) => {
   const query = `
     SELECT j.id, j.title, j.description, j.location, j.salary_range, j.created_at,
            e.phone as employer_phone,
@@ -619,7 +656,7 @@ app.get('/api/employer/:id/jobs', (req, res) => {
 });
 
 // 18. Worker applies for a job
-app.post('/api/jobs/:id/apply', (req, res) => {
+app.post('/api/jobs/:id/apply', writeLimiter, (req, res) => {
   const jobId    = parseInt(req.params.id, 10);
   const workerId = parseInt(req.body.workerId, 10);
 
@@ -705,7 +742,7 @@ const adminAuth = (req, res, next) => {
 };
 
 // A2. Platform Stats
-app.get('/api/admin/stats', adminAuth, (req, res) => {
+app.get('/api/admin/stats', adminLimiter, adminAuth, (req, res) => {
   const queries = {
     total_users:         'SELECT COUNT(*) as count FROM users',
     total_workers:       'SELECT COUNT(*) as count FROM workers',
@@ -729,7 +766,7 @@ app.get('/api/admin/stats', adminAuth, (req, res) => {
 });
 
 // A3. All Users
-app.get('/api/admin/users', adminAuth, (req, res) => {
+app.get('/api/admin/users', adminLimiter, adminAuth, (req, res) => {
   db.all('SELECT id, email, role, status, created_at FROM users ORDER BY created_at DESC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'DB error' });
     res.json(rows);
@@ -737,7 +774,7 @@ app.get('/api/admin/users', adminAuth, (req, res) => {
 });
 
 // A4. Delete User
-app.delete('/api/admin/users/:id', adminAuth, (req, res) => {
+app.delete('/api/admin/users/:id', adminLimiter, adminAuth, (req, res) => {
   db.run('DELETE FROM users WHERE id = ?', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete user' });
     if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
@@ -746,7 +783,7 @@ app.delete('/api/admin/users/:id', adminAuth, (req, res) => {
 });
 
 // A4b. Update User Status
-app.put('/api/admin/users/:id/status', adminAuth, (req, res) => {
+app.put('/api/admin/users/:id/status', adminLimiter, adminAuth, (req, res) => {
   const { status } = req.body;
   const allowed = ['active', 'suspended', 'blocked'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
@@ -757,7 +794,7 @@ app.put('/api/admin/users/:id/status', adminAuth, (req, res) => {
 });
 
 // A5. All Workers (with profile)
-app.get('/api/admin/workers', adminAuth, (req, res) => {
+app.get('/api/admin/workers', adminLimiter, adminAuth, (req, res) => {
   const q = `
     SELECT w.user_id as id, w.full_name, w.phone, w.location, w.status,
            u.email, wp.skills, wp.experience
@@ -773,7 +810,7 @@ app.get('/api/admin/workers', adminAuth, (req, res) => {
 });
 
 // A6. Update Worker Status
-app.put('/api/admin/workers/:id/status', adminAuth, (req, res) => {
+app.put('/api/admin/workers/:id/status', adminLimiter, adminAuth, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'completed', 'suspended'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
@@ -784,7 +821,7 @@ app.put('/api/admin/workers/:id/status', adminAuth, (req, res) => {
 });
 
 // A7. All Employers
-app.get('/api/admin/employers', adminAuth, (req, res) => {
+app.get('/api/admin/employers', adminLimiter, adminAuth, (req, res) => {
   const q = `
     SELECT e.user_id as id, u.email, e.phone, e.location, u.created_at
     FROM employers e
@@ -798,7 +835,7 @@ app.get('/api/admin/employers', adminAuth, (req, res) => {
 });
 
 // A8. All Jobs
-app.get('/api/admin/jobs', adminAuth, (req, res) => {
+app.get('/api/admin/jobs', adminLimiter, adminAuth, (req, res) => {
   const q = `
     SELECT j.id, j.title, j.location, j.salary_range, j.status, j.created_at,
            u.email as employer_email,
@@ -816,7 +853,7 @@ app.get('/api/admin/jobs', adminAuth, (req, res) => {
 });
 
 // A9. Delete Job
-app.delete('/api/admin/jobs/:id', adminAuth, (req, res) => {
+app.delete('/api/admin/jobs/:id', adminLimiter, adminAuth, (req, res) => {
   db.run('DELETE FROM jobs WHERE id = ?', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete job' });
     if (this.changes === 0) return res.status(404).json({ error: 'Job not found' });
@@ -825,7 +862,7 @@ app.delete('/api/admin/jobs/:id', adminAuth, (req, res) => {
 });
 
 // A10. All Applications
-app.get('/api/admin/applications', adminAuth, (req, res) => {
+app.get('/api/admin/applications', adminLimiter, adminAuth, (req, res) => {
   const q = `
     SELECT ja.id, ja.status, ja.created_at,
            j.title as job_title,
@@ -844,7 +881,7 @@ app.get('/api/admin/applications', adminAuth, (req, res) => {
 });
 
 // A11. Update Application Status
-app.put('/api/admin/applications/:id/status', adminAuth, (req, res) => {
+app.put('/api/admin/applications/:id/status', adminLimiter, adminAuth, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'accepted', 'declined'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
@@ -855,7 +892,7 @@ app.put('/api/admin/applications/:id/status', adminAuth, (req, res) => {
 });
 
 // A12. All Notifications
-app.get('/api/admin/notifications', adminAuth, (req, res) => {
+app.get('/api/admin/notifications', adminLimiter, adminAuth, (req, res) => {
   const q = `
     SELECT n.id, n.type, n.message, n.is_read, n.created_at, u.email as user_email
     FROM notifications n
@@ -870,7 +907,7 @@ app.get('/api/admin/notifications', adminAuth, (req, res) => {
 });
 
 // A13. Delete Notification
-app.delete('/api/admin/notifications/:id', adminAuth, (req, res) => {
+app.delete('/api/admin/notifications/:id', adminLimiter, adminAuth, (req, res) => {
   db.run('DELETE FROM notifications WHERE id = ?', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete' });
     res.json({ success: true });
