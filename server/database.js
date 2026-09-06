@@ -47,6 +47,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
           phone TEXT NOT NULL,
           location TEXT DEFAULT '',
           status TEXT DEFAULT 'pending',
+          availability TEXT DEFAULT 'available',
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
@@ -96,13 +97,22 @@ const db = new sqlite3.Database(dbPath, (err) => {
       // Create Job Applications table (Workers applying to jobs)
       db.run(`
         CREATE TABLE IF NOT EXISTS job_applications (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          application_id INTEGER PRIMARY KEY AUTOINCREMENT,
           job_id INTEGER NOT NULL,
           worker_id INTEGER NOT NULL,
           status TEXT DEFAULT 'pending',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
-          FOREIGN KEY (worker_id) REFERENCES users(id) ON DELETE CASCADE
+          FOREIGN KEY (worker_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE(job_id, worker_id)
+        )
+      `);
+
+      // Create Admin Settings table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS admin_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
         )
       `);
 

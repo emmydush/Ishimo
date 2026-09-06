@@ -80,6 +80,12 @@ setTimeout(() => {
     }
   });
 
+  db.run(`ALTER TABLE workers ADD COLUMN availability TEXT DEFAULT 'available'`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Migration error (availability):', err.message);
+    }
+  });
+
   db.run(`
     CREATE TABLE IF NOT EXISTS notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,6 +98,22 @@ setTimeout(() => {
     )
   `, (err) => {
     if (err) console.error('Migration error (notifications):', err.message);
+  });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS admin_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `, (err) => {
+    if (err) console.error('Migration error (admin_settings):', err.message);
+    else {
+      bcrypt.hash('admin123', 10, (err, hash) => {
+        if (!err) {
+          db.run(`INSERT OR IGNORE INTO admin_settings (key, value) VALUES ('password_hash', ?)`, [hash]);
+        }
+      });
+    }
   });
 
   // Activity logs table
@@ -243,10 +265,25 @@ app.post('/api/login', authLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  // Check for admin credentials first
-  if (email === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    logActivity(null, 'admin', 'login', 'admin', 'Admin logged in', req.ip);
-    return res.json({ success: true, role: 'admin', token: ADMIN_TOKEN });
+  if (email === ADMIN_USERNAME) {
+    db.get("SELECT value FROM admin_settings WHERE key = 'password_hash'", async (err, row) => {
+      if (err || !row) {
+        // Fallback to hardcoded if not set up
+        if (password === ADMIN_PASSWORD) {
+          logActivity(null, 'admin', 'login', 'admin', 'Admin logged in (fallback)', req.ip);
+          return res.json({ success: true, role: 'admin', token: ADMIN_TOKEN });
+        }
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const valid = await bcrypt.compare(password, row.value);
+      if (valid) {
+        logActivity(null, 'admin', 'login', 'admin', 'Admin logged in', req.ip);
+        return res.json({ success: true, role: 'admin', token: ADMIN_TOKEN });
+      }
+      return res.status(401).json({ error: 'Invalid email or password' });
+    });
+    return;
   }
 
   db.get('SELECT id, password_hash, role, status FROM users WHERE email = ?', [email], async (err, user) => {
@@ -302,6 +339,9 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
   if (!skills) return res.status(400).json({ error: 'Skills are required.' });
   if (!experience) return res.status(400).json({ error: 'Experience is required.' });
   if (!nationalId) return res.status(400).json({ error: 'National ID is required.' });
+  if (!/^\d{15}$/.test(nationalId)) {
+    return res.status(400).json({ error: 'National ID must be exactly 15 digits.' });
+  }
 
   const idPhotoPath = req.files && req.files['idPhoto'] ? req.files['idPhoto'][0].path : null;
   const passportPhotoPath = req.files && req.files['passportPhoto'] ? req.files['passportPhoto'][0].path : null;
@@ -354,16 +394,17 @@ app.get('/api/workers', readLimiter, (req, res) => {
     
     // Format the data for the frontend
     const workers = rows.map(row => {
+      const filename = row.image ? path.basename(row.image) : null;
       return {
         id: row.id,
         name: row.name,
-        role: 'Verified Professional', 
+        role: 'Verified Professional',
         exp: row.experience + ' yrs',
         rating: 4.9, // Mocked for now
         location: row.location || 'Not specified',
         skills: row.skills ? row.skills.split(',').map(s => s.trim()) : [],
         verified: true,
-        image: row.image ? 'http://localhost:3000/' + row.image.replace(/\\/g, '/') : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
+        image: filename ? `http://localhost:3000/uploads/${filename}` : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
       };
     });
     
@@ -407,7 +448,8 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
     if (err || !workerRow) return res.status(404).json({ error: 'Worker not found' });
 
     if (workerRow.passport_photo_path) {
-      workerRow.passport_photo_url = `http://localhost:3000/${workerRow.passport_photo_path.replace(/\\/g, '/')}`;
+      const filename = path.basename(workerRow.passport_photo_path);
+      workerRow.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
     }
     delete workerRow.passport_photo_path;
     
@@ -476,8 +518,14 @@ app.get('/api/worker/:id/profile', (req, res) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!row) return res.status(404).json({ error: 'Worker not found' });
     
-    if (row.id_photo_path) row.id_photo_url = `http://localhost:3000/${row.id_photo_path.replace(/\\/g, '/')}`;
-    if (row.passport_photo_path) row.passport_photo_url = `http://localhost:3000/${row.passport_photo_path.replace(/\\/g, '/')}`;
+    if (row.id_photo_path) {
+      const filename = path.basename(row.id_photo_path);
+      row.id_photo_url = `http://localhost:3000/uploads/${filename}`;
+    }
+    if (row.passport_photo_path) {
+      const filename = path.basename(row.passport_photo_path);
+      row.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
+    }
     
     res.json(row);
   });
@@ -498,6 +546,9 @@ app.put('/api/worker/:id/profile', writeLimiter, upload.fields([
 
   if (!full_name) return res.status(400).json({ error: 'Full name is required.' });
   if (!phone)     return res.status(400).json({ error: 'Phone number is required.' });
+  if (nationalId && !/^\d{15}$/.test(nationalId)) {
+    return res.status(400).json({ error: 'National ID must be exactly 15 digits.' });
+  }
 
   const idPhotoPath = req.files && req.files['idPhoto'] ? req.files['idPhoto'][0].path.replace(/\\/g, '/') : null;
   const passportPhotoPath = req.files && req.files['passportPhoto'] ? req.files['passportPhoto'][0].path.replace(/\\/g, '/') : null;
@@ -639,10 +690,12 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
 
     // Format passport photo for display
     if (row.passport_photo_path) {
-      row.passport_photo_url = `http://localhost:3000/${row.passport_photo_path.replace(/\\/g, '/')}`;
+      const filename = path.basename(row.passport_photo_path);
+      row.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
     }
     if (row.id_photo_path) {
-      row.id_photo_url = `http://localhost:3000/${row.id_photo_path.replace(/\\/g, '/')}`;
+      const filename = path.basename(row.id_photo_path);
+      row.id_photo_url = `http://localhost:3000/uploads/${filename}`;
     }
 
     // Get completed job count (accepted requests)
@@ -780,7 +833,7 @@ app.put('/api/applications/:id/status', writeLimiter, (req, res) => {
   const applicationId = parseInt(req.params.id, 10);
   const status = sanitize(req.body.status);
 
-  if (!['accepted', 'rejected'].includes(status)) {
+  if (!['accepted', 'rejected', 'hired', 'fired', 'left'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
 
@@ -797,9 +850,9 @@ app.put('/api/applications/:id/status', writeLimiter, (req, res) => {
     db.run('UPDATE job_applications SET status = ? WHERE id = ?', [status, applicationId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update status' });
       // Notify worker of employer decision
-      const action = status === 'accepted' ? 'accepted' : 'rejected';
+      const action = status === 'accepted' ? 'accepted' : status === 'hired' ? 'hired you for' : status === 'fired' ? 'fired you from' : status === 'left' ? 'marked you as left on' : 'rejected';
       createNotification(app.worker_id, 'application_response', `An employer has ${action} your application for "${app.title}".`);
-      logActivity(app.employer_id, null, 'update_application_status', 'job_application', `Employer ${action} application ${applicationId}`, req.ip);
+      logActivity(app.employer_id, null, 'update_application_status', 'job_application', `Employer updated application ${applicationId} to ${status}`, req.ip);
       res.json({ success: true, message: 'Status updated' });
     });
   });
@@ -838,6 +891,62 @@ const adminAuth = (req, res, next) => {
   if (token !== ADMIN_TOKEN) return res.status(403).json({ error: 'Forbidden' });
   next();
 };
+
+// A1. Get All Admin Settings
+app.get('/api/admin/settings', adminLimiter, adminAuth, (req, res) => {
+  db.all('SELECT key, value FROM admin_settings', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Failed to fetch settings' });
+    const settings = {};
+    rows.forEach(row => {
+      settings[row.key] = row.value;
+    });
+    res.json(settings);
+  });
+});
+
+// A2. Update Admin Setting
+app.put('/api/admin/settings/:key', adminLimiter, adminAuth, (req, res) => {
+  const { key } = req.params;
+  const { value } = req.body;
+  if (!value) return res.status(400).json({ error: 'Value is required' });
+
+  db.run('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [key, value], function(err) {
+    if (err) return res.status(500).json({ error: 'Failed to update setting' });
+    res.json({ success: true });
+  });
+});
+
+// A3. Change Admin Password
+app.put('/api/admin/settings/password', adminLimiter, adminAuth, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
+    db.run("INSERT OR REPLACE INTO admin_settings (key, value) VALUES ('password_hash', ?)", [hash], (err) => {
+      if (err) return res.status(500).json({ error: 'Failed to update admin password' });
+      res.json({ success: true });
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// A1b. Reset User Password
+app.put('/api/admin/users/:id/password', adminLimiter, adminAuth, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
+    db.run("UPDATE users SET password_hash = ? WHERE id = ?", [hash, req.params.id], (err) => {
+      if (err) return res.status(500).json({ error: 'Failed to update user password' });
+      res.json({ success: true });
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // A2. Platform Stats
 app.get('/api/admin/stats', adminLimiter, adminAuth, (req, res) => {
@@ -894,7 +1003,7 @@ app.put('/api/admin/users/:id/status', adminLimiter, adminAuth, (req, res) => {
 // A5. All Workers (with profile)
 app.get('/api/admin/workers', adminLimiter, adminAuth, (req, res) => {
   const q = `
-    SELECT w.user_id as id, w.full_name, w.phone, w.location, w.status,
+    SELECT w.user_id as id, w.full_name, w.phone, w.location, w.status, w.availability,
            u.email, wp.skills, wp.experience
     FROM workers w
     JOIN users u ON w.user_id = u.id
@@ -914,6 +1023,17 @@ app.put('/api/admin/workers/:id/status', adminLimiter, adminAuth, (req, res) => 
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
   db.run('UPDATE workers SET status = ? WHERE user_id = ?', [status, req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to update' });
+    res.json({ success: true });
+  });
+});
+
+// A6b. Update Worker Availability
+app.put('/api/admin/workers/:id/availability', adminLimiter, adminAuth, (req, res) => {
+  const { availability } = req.body;
+  const allowed = ['available', 'busy', 'unavailable'];
+  if (!allowed.includes(availability)) return res.status(400).json({ error: 'Invalid availability status' });
+  db.run('UPDATE workers SET availability = ? WHERE user_id = ?', [availability, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: 'Failed to update availability' });
     res.json({ success: true });
   });
 });

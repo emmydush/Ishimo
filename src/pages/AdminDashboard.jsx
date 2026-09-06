@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, Users, Briefcase, FileText, Bell, 
+import {
+  Shield, Users, Briefcase, FileText, Bell,
   LogOut, Trash2, CheckCircle, XCircle, LayoutDashboard,
-  AlertTriangle, RefreshCw, Activity
+  AlertTriangle, RefreshCw, Activity, Lock, Mail, ShieldCheck,
+  Globe, Clock, Key, Zap, Settings as SettingsIcon
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -14,6 +15,48 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [settings, setSettings] = useState({
+    // Platform Settings
+    site_name: 'EliteConnect',
+    site_description: 'Connecting elite workers with employers',
+    maintenance_mode: 'false',
+    maintenance_message: 'Site is under maintenance. Please check back later.',
+
+    // Registration Settings
+    allow_registration: 'true',
+    max_workers_per_employer: '10',
+    require_worker_verification: 'true',
+    require_employer_verification: 'false',
+
+    // Email/Notification Settings
+    email_notifications_enabled: 'true',
+    welcome_email_enabled: 'true',
+    job_alert_email_enabled: 'true',
+    admin_notification_email: 'admin@eliteconnect.com',
+
+    // Content Moderation Settings
+    auto_moderate_jobs: 'true',
+    require_job_approval: 'false',
+    profanity_filter_enabled: 'true',
+    max_job_description_length: '5000',
+
+    // API/Rate Limit Settings
+    api_rate_limit_enabled: 'true',
+    api_rate_limit_window: '15',
+    api_rate_limit_max_requests: '100',
+
+    // User Management Settings
+    user_session_timeout: '30',
+    password_min_length: '8',
+    password_require_special_char: 'true',
+    account_inactivity_days: '90',
+
+    // Job Posting Settings
+    max_active_jobs_per_employer: '20',
+    job_expiry_days: '30',
+    allow_job_editing: 'true',
+    allow_job_deletion: 'true'
+  });
 
   const changeTab = (tab) => {
     setLoading(true);
@@ -28,7 +71,11 @@ const AdminDashboard = () => {
       navigate('/login');
       return;
     }
-    fetchData(activeTab);
+    if (activeTab === 'settings') {
+      fetchSettings();
+    } else {
+      fetchData(activeTab);
+    }
   }, [activeTab, adminToken, navigate]);
 
   const fetchData = async (tab) => {
@@ -48,6 +95,44 @@ const AdminDashboard = () => {
       showToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3000/api/admin/settings', {
+        headers: { 'x-admin-token': adminToken }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(prev => ({ ...prev, ...data }));
+      }
+    } catch (err) {
+      showToast('Failed to load settings', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateSetting = async (key, value) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/admin/settings/${key}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken
+        },
+        body: JSON.stringify({ value })
+      });
+      if (res.ok) {
+        setSettings(prev => ({ ...prev, [key]: value }));
+        showToast('Setting updated successfully', 'success');
+      } else {
+        showToast('Failed to update setting', 'error');
+      }
+    } catch (err) {
+      showToast('Server error', 'error');
     }
   };
 
@@ -103,6 +188,78 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleAvailabilityUpdate = async (id, availability) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/admin/workers/${id}/availability`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken
+        },
+        body: JSON.stringify({ availability })
+      });
+      if (res.ok) {
+        showToast('Availability updated', 'success');
+        fetchData(activeTab);
+      } else {
+        showToast('Failed to update availability', 'error');
+      }
+    } catch {
+      showToast('Server error', 'error');
+    }
+  };
+
+  const handleResetUserPassword = async (userId) => {
+    const newPassword = prompt('Enter new password for this user (min 8 chars):');
+    if (!newPassword) return;
+    if (newPassword.length < 8) {
+      return showToast('Password must be at least 8 characters', 'error');
+    }
+    try {
+      const res = await fetch(`http://localhost:3000/api/admin/users/${userId}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken
+        },
+        body: JSON.stringify({ newPassword })
+      });
+      if (res.ok) {
+        showToast('User password reset successfully', 'success');
+      } else {
+        showToast('Failed to reset user password', 'error');
+      }
+    } catch {
+      showToast('Server error', 'error');
+    }
+  };
+
+  const handleChangeAdminPassword = async (e) => {
+    e.preventDefault();
+    const newPassword = e.target.newPassword.value;
+    if (!newPassword || newPassword.length < 8) {
+      return showToast('Password must be at least 8 characters', 'error');
+    }
+    try {
+      const res = await fetch('http://localhost:3000/api/admin/settings/password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken
+        },
+        body: JSON.stringify({ newPassword })
+      });
+      if (res.ok) {
+        showToast('Admin password changed successfully', 'success');
+        e.target.reset();
+      } else {
+        showToast('Failed to change admin password', 'error');
+      }
+    } catch {
+      showToast('Server error', 'error');
+    }
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -112,7 +269,7 @@ const AdminDashboard = () => {
       );
     }
 
-    if (!data) return null;
+    if (!data && activeTab !== 'settings') return null;
 
     switch (activeTab) {
       case 'overview':
@@ -171,7 +328,10 @@ const AdminDashboard = () => {
                         <option value="suspended">Suspended</option>
                         <option value="blocked">Blocked</option>
                       </select>
-                      <button onClick={() => handleDelete('user', u.id)} style={{ color: '#ef4444', padding: '8px' }}>
+                      <button onClick={() => handleResetUserPassword(u.id)} style={{ color: 'var(--accent-emerald)', padding: '8px' }} title="Reset Password">
+                        <Lock size={18} />
+                      </button>
+                      <button onClick={() => handleDelete('user', u.id)} style={{ color: '#ef4444', padding: '8px' }} title="Delete">
                         <Trash2 size={18} />
                       </button>
                     </td>
@@ -192,6 +352,7 @@ const AdminDashboard = () => {
                   <th style={{ padding: '16px' }}>Name & Email</th>
                   <th style={{ padding: '16px' }}>Location</th>
                   <th style={{ padding: '16px' }}>Status</th>
+                  <th style={{ padding: '16px' }}>Availability</th>
                   <th style={{ padding: '16px', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -209,6 +370,25 @@ const AdminDashboard = () => {
                         {w.status}
                       </Badge>
                     </td>
+                    <td style={{ padding: '16px' }}>
+                      <select 
+                        value={w.availability || 'available'} 
+                        onChange={(e) => handleAvailabilityUpdate(w.id, e.target.value)}
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-main)',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="available">Available</option>
+                        <option value="busy">Busy</option>
+                        <option value="unavailable">Unavailable</option>
+                      </select>
+                    </td>
                     <td style={{ padding: '16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                       {w.status === 'pending' && (
                         <button onClick={() => handleStatusUpdate('worker', w.id, 'completed')} style={{ color: 'var(--accent-emerald)', padding: '6px', background: 'rgba(16,185,129,0.1)', borderRadius: '6px' }}>
@@ -225,6 +405,9 @@ const AdminDashboard = () => {
                           Unsuspend
                         </button>
                       )}
+                      <button onClick={() => handleResetUserPassword(w.id)} style={{ color: 'var(--text-main)', padding: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', border: '1px solid var(--border-color)' }} title="Reset Password">
+                        Reset Password
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -401,7 +584,7 @@ const AdminDashboard = () => {
                   let actionColor = 'muted';
                   if (log.action === 'login' || log.action === 'register') actionColor = 'emerald';
                   else if (log.action.includes('update') || log.action.includes('change')) actionColor = 'gold';
-                  else if (log.action.includes('create') || log.action === 'job_request') actionColor = 'gold'; // Or some other color
+                  else if (log.action.includes('create') || log.action === 'job_request') actionColor = 'gold';
 
                   return (
                     <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -425,6 +608,406 @@ const AdminDashboard = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Platform Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Globe size={20} style={{ color: 'var(--accent-emerald)' }} /> Platform Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Site Name</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={settings.site_name}
+                    onChange={(e) => handleUpdateSetting('site_name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Site Description</label>
+                  <textarea
+                    className="input-field"
+                    value={settings.site_description}
+                    onChange={(e) => handleUpdateSetting('site_description', e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="maintenance_mode"
+                    checked={settings.maintenance_mode === 'true'}
+                    onChange={(e) => handleUpdateSetting('maintenance_mode', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="maintenance_mode" style={{ margin: 0, cursor: 'pointer' }}>
+                    Maintenance Mode (Disable access for non-admins)
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Maintenance Message</label>
+                  <textarea
+                    className="input-field"
+                    value={settings.maintenance_message}
+                    onChange={(e) => handleUpdateSetting('maintenance_message', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Registration Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={20} style={{ color: 'var(--accent-gold)' }} /> Registration Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="allow_registration"
+                    checked={settings.allow_registration === 'true'}
+                    onChange={(e) => handleUpdateSetting('allow_registration', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="allow_registration" style={{ margin: 0, cursor: 'pointer' }}>
+                    Allow New User Registration
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Workers per Employer</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.max_workers_per_employer}
+                    onChange={(e) => handleUpdateSetting('max_workers_per_employer', e.target.value)}
+                    min="1"
+                    max="100"
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="require_worker_verification"
+                    checked={settings.require_worker_verification === 'true'}
+                    onChange={(e) => handleUpdateSetting('require_worker_verification', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="require_worker_verification" style={{ margin: 0, cursor: 'pointer' }}>
+                    Require Worker Verification (ID documents)
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="require_employer_verification"
+                    checked={settings.require_employer_verification === 'true'}
+                    onChange={(e) => handleUpdateSetting('require_employer_verification', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="require_employer_verification" style={{ margin: 0, cursor: 'pointer' }}>
+                    Require Employer Verification
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Email/Notification Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Mail size={20} style={{ color: '#3b82f6' }} /> Email & Notification Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="email_notifications_enabled"
+                    checked={settings.email_notifications_enabled === 'true'}
+                    onChange={(e) => handleUpdateSetting('email_notifications_enabled', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="email_notifications_enabled" style={{ margin: 0, cursor: 'pointer' }}>
+                    Enable Email Notifications
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="welcome_email_enabled"
+                    checked={settings.welcome_email_enabled === 'true'}
+                    onChange={(e) => handleUpdateSetting('welcome_email_enabled', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="welcome_email_enabled" style={{ margin: 0, cursor: 'pointer' }}>
+                    Send Welcome Email on Registration
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="job_alert_email_enabled"
+                    checked={settings.job_alert_email_enabled === 'true'}
+                    onChange={(e) => handleUpdateSetting('job_alert_email_enabled', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="job_alert_email_enabled" style={{ margin: 0, cursor: 'pointer' }}>
+                    Send Job Alert Emails
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Admin Notification Email</label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    value={settings.admin_notification_email}
+                    onChange={(e) => handleUpdateSetting('admin_notification_email', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Content Moderation Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={20} style={{ color: '#a855f7' }} /> Content Moderation Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="auto_moderate_jobs"
+                    checked={settings.auto_moderate_jobs === 'true'}
+                    onChange={(e) => handleUpdateSetting('auto_moderate_jobs', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="auto_moderate_jobs" style={{ margin: 0, cursor: 'pointer' }}>
+                    Auto-Moderate Job Postings
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="require_job_approval"
+                    checked={settings.require_job_approval === 'true'}
+                    onChange={(e) => handleUpdateSetting('require_job_approval', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="require_job_approval" style={{ margin: 0, cursor: 'pointer' }}>
+                    Require Admin Approval for Jobs
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="profanity_filter_enabled"
+                    checked={settings.profanity_filter_enabled === 'true'}
+                    onChange={(e) => handleUpdateSetting('profanity_filter_enabled', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="profanity_filter_enabled" style={{ margin: 0, cursor: 'pointer' }}>
+                    Enable Profanity Filter
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Job Description Length</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.max_job_description_length}
+                    onChange={(e) => handleUpdateSetting('max_job_description_length', e.target.value)}
+                    min="100"
+                    max="10000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* API/Rate Limit Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Zap size={20} style={{ color: '#f59e0b' }} /> API & Rate Limit Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="api_rate_limit_enabled"
+                    checked={settings.api_rate_limit_enabled === 'true'}
+                    onChange={(e) => handleUpdateSetting('api_rate_limit_enabled', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="api_rate_limit_enabled" style={{ margin: 0, cursor: 'pointer' }}>
+                    Enable API Rate Limiting
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Rate Limit Window (seconds)</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.api_rate_limit_window}
+                    onChange={(e) => handleUpdateSetting('api_rate_limit_window', e.target.value)}
+                    min="1"
+                    max="3600"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Requests per Window</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.api_rate_limit_max_requests}
+                    onChange={(e) => handleUpdateSetting('api_rate_limit_max_requests', e.target.value)}
+                    min="1"
+                    max="1000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* User Management Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <SettingsIcon size={20} style={{ color: '#06b6d4' }} /> User Management Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Session Timeout (minutes)</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.user_session_timeout}
+                    onChange={(e) => handleUpdateSetting('user_session_timeout', e.target.value)}
+                    min="5"
+                    max="1440"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Password Min Length</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.password_min_length}
+                    onChange={(e) => handleUpdateSetting('password_min_length', e.target.value)}
+                    min="4"
+                    max="32"
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="password_require_special_char"
+                    checked={settings.password_require_special_char === 'true'}
+                    onChange={(e) => handleUpdateSetting('password_require_special_char', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="password_require_special_char" style={{ margin: 0, cursor: 'pointer' }}>
+                    Require Special Characters in Password
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Account Inactivity Days (before suspension)</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.account_inactivity_days}
+                    onChange={(e) => handleUpdateSetting('account_inactivity_days', e.target.value)}
+                    min="30"
+                    max="365"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Job Posting Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Briefcase size={20} style={{ color: '#10b981' }} /> Job Posting Settings
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Active Jobs per Employer</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.max_active_jobs_per_employer}
+                    onChange={(e) => handleUpdateSetting('max_active_jobs_per_employer', e.target.value)}
+                    min="1"
+                    max="100"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Job Expiry Days</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={settings.job_expiry_days}
+                    onChange={(e) => handleUpdateSetting('job_expiry_days', e.target.value)}
+                    min="1"
+                    max="365"
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="allow_job_editing"
+                    checked={settings.allow_job_editing === 'true'}
+                    onChange={(e) => handleUpdateSetting('allow_job_editing', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="allow_job_editing" style={{ margin: 0, cursor: 'pointer' }}>
+                    Allow Job Editing
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="allow_job_deletion"
+                    checked={settings.allow_job_deletion === 'true'}
+                    onChange={(e) => handleUpdateSetting('allow_job_deletion', e.target.checked.toString())}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="allow_job_deletion" style={{ margin: 0, cursor: 'pointer' }}>
+                    Allow Job Deletion
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Security Settings */}
+            <div className="glass-panel" style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={20} style={{ color: '#ef4444' }} /> Security Settings
+              </h3>
+              <form onSubmit={handleChangeAdminPassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>New Admin Password</label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    className="input-field"
+                    placeholder="Enter new password (min 8 chars)"
+                    required
+                    minLength={8}
+                  />
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  className="btn-premium"
+                  style={{ alignSelf: 'flex-start', padding: '10px 24px' }}
+                >
+                  Change Password
+                </motion.button>
+              </form>
+            </div>
           </div>
         );
 
@@ -457,6 +1040,7 @@ const AdminDashboard = () => {
           <SidebarItem icon={<CheckCircle />} label="Applications" active={activeTab === 'applications'} onClick={() => changeTab('applications')} />
           <SidebarItem icon={<Bell />} label="Notifications" active={activeTab === 'notifications'} onClick={() => changeTab('notifications')} />
           <SidebarItem icon={<Activity />} label="Activity Logs" active={activeTab === 'logs'} onClick={() => changeTab('logs')} />
+          <SidebarItem icon={<Lock />} label="Settings" active={activeTab === 'settings'} onClick={() => changeTab('settings')} />
         </div>
 
         <div style={{ padding: '20px', borderTop: '1px solid var(--border-color)' }}>

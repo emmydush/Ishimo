@@ -351,17 +351,41 @@ const EmployerDashboard = () => {
                                     <motion.button
                                       whileHover={{ scale: 1.02 }}
                                       whileTap={{ scale: 0.98 }}
-                                      onClick={() => handleUpdateApplicationStatus(app.application_id, 'accepted')}
+                                      onClick={() => handleUpdateApplicationStatus(app.application_id, 'hired')}
                                       className="btn-premium"
                                       style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000' }}
                                     >
-                                      Accept
+                                      Hire
                                     </motion.button>
                                   </>
                                 ) : (
-                                  <span style={{ padding: '4px 12px', background: app.status === 'accepted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: app.status === 'accepted' ? 'var(--accent-emerald)' : '#ef4444', borderRadius: '8px', fontWeight: 500, fontSize: '0.85rem', textTransform: 'capitalize' }}>
-                                    {app.status}
-                                  </span>
+                                  <>
+                                    <span style={{ padding: '4px 12px', background: (app.status === 'accepted' || app.status === 'hired') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: (app.status === 'accepted' || app.status === 'hired') ? 'var(--accent-emerald)' : '#ef4444', borderRadius: '8px', fontWeight: 500, fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                                      {app.status}
+                                    </span>
+                                    {(app.status === 'accepted' || app.status === 'hired') && (
+                                      <>
+                                        <motion.button
+                                          whileHover={{ scale: 1.02 }}
+                                          whileTap={{ scale: 0.98 }}
+                                          onClick={() => handleUpdateApplicationStatus(app.application_id, 'fired')}
+                                          className="btn-outline"
+                                          style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444', marginLeft: '8px' }}
+                                        >
+                                          Fire
+                                        </motion.button>
+                                        <motion.button
+                                          whileHover={{ scale: 1.02 }}
+                                          whileTap={{ scale: 0.98 }}
+                                          onClick={() => handleUpdateApplicationStatus(app.application_id, 'left')}
+                                          className="btn-outline"
+                                          style={{ padding: '6px 12px', fontSize: '0.8rem', marginLeft: '8px' }}
+                                        >
+                                          Left
+                                        </motion.button>
+                                      </>
+                                    )}
+                                  </>
                                 )}
                                 <button
                                   onClick={() => navigate(`/worker/${app.worker_id}`)}
