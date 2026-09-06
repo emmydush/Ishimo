@@ -363,7 +363,7 @@ app.get('/api/workers', readLimiter, (req, res) => {
         location: row.location || 'Not specified',
         skills: row.skills ? row.skills.split(',').map(s => s.trim()) : [],
         verified: true,
-        image: row.image ? 'http://localhost:3000/' + row.image : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
+        image: row.image ? 'http://localhost:3000/' + row.image.replace(/\\/g, '/') : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
       };
     });
     
@@ -407,7 +407,7 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
     if (err || !workerRow) return res.status(404).json({ error: 'Worker not found' });
 
     if (workerRow.passport_photo_path) {
-      workerRow.passport_photo_url = `http://localhost:3000/${workerRow.passport_photo_path}`;
+      workerRow.passport_photo_url = `http://localhost:3000/${workerRow.passport_photo_path.replace(/\\/g, '/')}`;
     }
     delete workerRow.passport_photo_path;
     
@@ -611,10 +611,10 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
 
     // Format passport photo for display
     if (row.passport_photo_path) {
-      row.passport_photo_url = `http://localhost:3000/${row.passport_photo_path}`;
+      row.passport_photo_url = `http://localhost:3000/${row.passport_photo_path.replace(/\\/g, '/')}`;
     }
     if (row.id_photo_path) {
-      row.id_photo_url = `http://localhost:3000/${row.id_photo_path}`;
+      row.id_photo_url = `http://localhost:3000/${row.id_photo_path.replace(/\\/g, '/')}`;
     }
 
     // Get completed job count (accepted requests)
