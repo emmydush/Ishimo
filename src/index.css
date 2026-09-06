@@ -1,0 +1,402 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg-dark: #0a0a0b;
+  --bg-card: #121316;
+  --bg-elevated: #1a1b1f;
+  
+  --text-main: #ffffff;
+  --text-muted: #8e919b;
+  
+  --accent-gold: #d4af37;
+  --accent-gold-hover: #e8c659;
+  
+  --accent-emerald: #10b981;
+  --accent-emerald-hover: #059669;
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(18, 19, 22, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  
+  --shadow-glow: 0 0 20px rgba(212, 175, 55, 0.15);
+  --shadow-drop: 0 10px 30px rgba(0, 0, 0, 0.5);
+  
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Utilities */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-drop);
+  border-radius: 16px;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #fff 0%, #b3b3b3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, var(--accent-gold) 0%, #f9e596 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Premium Button */
+.btn-premium {
+  background: linear-gradient(135deg, var(--accent-gold) 0%, #b8952b 100%);
+  color: #000;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 8px;
+  transition: var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+  background: linear-gradient(135deg, var(--accent-gold-hover) 0%, var(--accent-gold) 100%);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  font-weight: 500;
+  padding: 12px 28px;
+  border-radius: 8px;
+  transition: var(--transition-smooth);
+}
+
+.btn-outline:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent-gold);
+}
+
+/* Form Elements */
+.input-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-label {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.input-field {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  transition: var(--transition-smooth);
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1);
+}
+
+.input-field::placeholder {
+  color: #4a4d57;
+}
+
+/* Layout */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 280px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+/* Mobile Top Header */
+.mobile-top-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1000;
+}
+
+/* Mobile Bottom Navigation - hidden on desktop */
+.mobile-bottom-nav {
+  display: none;
+}
+
+
+/* Mobile Responsive Utility Classes */
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.responsive-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.responsive-profile-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.responsive-button-group {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+.responsive-hero-title {
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  line-height: 1.1;
+}
+
+/* Card grids */
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* Worker / job card base */
+.worker-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  transition: var(--transition-smooth);
+}
+
+.worker-card:hover {
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Page header utility */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+    padding-top: 60px;
+  }
+  
+  .sidebar {
+    display: none; /* Hide traditional sidebar on mobile */
+  }
+
+  .mobile-top-header {
+    display: flex;
+  }
+  
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    z-index: 1000;
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+    align-items: center;
+    backdrop-filter: blur(10px);
+  }
+  
+  .main-content {
+    padding: 16px !important;
+    padding-bottom: 100px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  /* Force all headers to stack vertically */
+  header,
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 24px !important;
+  }
+
+  header h1,
+  .page-header h1 {
+    font-size: 1.6rem !important;
+  }
+
+  header p,
+  .page-header p {
+    font-size: 0.9rem !important;
+  }
+
+  /* Buttons in headers go full width on mobile */
+  header .btn-premium,
+  header button.btn-premium,
+  .page-header .btn-premium {
+    width: 100% !important;
+    justify-content: center;
+  }
+
+  /* Search inputs full width */
+  .input-field {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Any inline-styled search container */
+  header div[style*="position: relative"],
+  header div[style*="position:relative"] {
+    width: 100% !important;
+  }
+
+  header div[style*="position: relative"] input,
+  header div[style*="position:relative"] input {
+    width: 100% !important;
+  }
+
+  /* Grid fixes */
+  .grid-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .responsive-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .responsive-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .responsive-profile-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .responsive-button-group {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 12px !important;
+  }
+
+  .responsive-button-group button {
+    width: 100% !important;
+  }
+
+  .responsive-hero-title {
+    font-size: 2rem !important;
+  }
+
+  /* Glass panels less padding on mobile */
+  .glass-panel {
+    padding: 20px !important;
+  }
+
+  /* Tabs scroll horizontally if needed */
+  div[style*="borderBottom"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .responsive-hero-title {
+    font-size: 1.75rem !important;
+  }
+
+  header h1,
+  .page-header h1 {
+    font-size: 1.4rem !important;
+  }
+}
