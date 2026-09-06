@@ -138,7 +138,7 @@ if (!fs.existsSync(uploadDir)){
 // Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -1027,6 +1027,6 @@ app.put('/api/notifications/:userId/read-all', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
 });

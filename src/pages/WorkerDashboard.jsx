@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { motion } from 'framer-motion';
-import { Briefcase, Clock, Star, TrendingUp, CheckCircle, User } from 'lucide-react';
+import { Briefcase, Clock, Star, TrendingUp, CheckCircle, User, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import { useNotifications } from '../context/NotificationContext';
+import NotificationPanel from '../components/NotificationPanel';
 
 const WorkerDashboard = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { unreadCount } = useNotifications();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'applications'
   const [applications, setApplications] = useState([]);
@@ -117,12 +121,63 @@ const WorkerDashboard = () => {
               <p style={{ color: 'var(--text-muted)' }}>Here is an overview of your activity and requests.</p>
             </div>
           </div>
-          
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <motion.button 
+
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            {/* Notification Bell */}
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => setPanelOpen((o) => !o)}
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '10px',
+                background: panelOpen ? 'var(--bg-elevated)' : 'var(--bg-elevated)',
+                border: `1px solid ${panelOpen ? 'var(--accent-emerald)' : 'var(--border-color)'}`,
+                borderRadius: '10px',
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s'
+              }}
+              aria-label="Notifications"
+            >
+              <Bell size={20} color="var(--accent-emerald)" />
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '4px',
+                  minWidth: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  padding: '0 3px',
+                  boxShadow: '0 0 0 2px var(--bg-card)'
+                }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </motion.button>
+
+            {/* Notification Dropdown Panel */}
+            <NotificationPanel
+              isOpen={panelOpen}
+              onClose={() => setPanelOpen(false)}
+              accentColor="var(--accent-emerald)"
+            />
+
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="btn-outline" 
+              className="btn-outline"
               onClick={() => navigate('/worker-find-jobs')}
             >
               Find Jobs
