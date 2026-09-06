@@ -17,13 +17,24 @@ const RegisterWorker = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const cleaned = {
+      fullName: formData.fullName.trim(),
+      email:    formData.email.trim().toLowerCase(),
+      password: formData.password,
+      phone:    formData.phone.trim(),
+      location: formData.location.trim(),
+    };
+    if (!cleaned.fullName) return showToast('Full name is required.', 'error');
+    if (!cleaned.email)    return showToast('Email is required.', 'error');
+    if (cleaned.password.length < 8) return showToast('Password must be at least 8 characters.', 'error');
+    if (!cleaned.phone)    return showToast('Phone number is required.', 'error');
     try {
       const response = await fetch('http://localhost:3000/api/register/worker', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(cleaned)
       });
       
       const data = await response.json();

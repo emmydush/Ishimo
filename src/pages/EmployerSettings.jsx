@@ -10,7 +10,12 @@ const EmployerSettings = () => {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    if (passwords.new !== passwords.confirm) {
+    const current = passwords.current.trim();
+    const newPwd  = passwords.new.trim();
+    const confirm = passwords.confirm.trim();
+    if (!current) return showToast('Current password is required.', 'error');
+    if (newPwd.length < 8) return showToast('New password must be at least 8 characters.', 'error');
+    if (newPwd !== confirm) {
       return showToast("New passwords don't match", 'error');
     }
     const userId = localStorage.getItem('userId');
@@ -18,7 +23,7 @@ const EmployerSettings = () => {
       const res = await fetch(`http://localhost:3000/api/employer/${userId}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword: passwords.current, newPassword: passwords.new })
+        body: JSON.stringify({ currentPassword: current, newPassword: newPwd })
       });
       if (res.ok) {
         showToast('Password updated successfully!', 'success');

@@ -14,6 +14,27 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// ─── Sanitization helper ──────────────────────────────────────────────────────
+// Strips leading/trailing whitespace, collapses internal whitespace,
+// and removes HTML/script tags to prevent XSS / injection noise.
+const sanitize = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .trim()
+    .replace(/<[^>]*>/g, '')          // strip HTML tags
+    .replace(/\s+/g, ' ');            // collapse internal whitespace
+};
+
+// Sanitize a number string – returns '' if not a valid non-negative number
+const sanitizeNumber = (value) => {
+  const n = Number(sanitize(value));
+  return (!isNaN(n) && n >= 0) ? String(n) : '';
+};
+
+// Basic email format check
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Migrations: add columns / tables for existing databases
 setTimeout(() => {
   db.run(`ALTER TABLE workers ADD COLUMN location TEXT DEFAULT ''`, (err) => {
@@ -75,7 +96,16 @@ app.get('/', (req, res) => {
 
 // 1. Register Employer
 app.post('/api/register/employer', async (req, res) => {
-  const { email, password, phone, location } = req.body;
+  const email    = sanitize(req.body.email).toLowerCase();
+  const password = (req.body.password || '').trim();
+  const phone    = sanitize(req.body.phone);
+  const location = sanitize(req.body.location);
+
+  if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
+  if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
+  if (!location) return res.status(400).json({ error: 'Location is required.' });
+
   try {
     const hash = await bcrypt.hash(password, 10);
     
@@ -104,7 +134,17 @@ app.post('/api/register/employer', async (req, res) => {
 
 // 2. Register Worker
 app.post('/api/register/worker', async (req, res) => {
-  const { fullName, email, password, phone, location } = req.body;
+  const fullName = sanitize(req.body.fullName);
+  const email    = sanitize(req.body.email).toLowerCase();
+  const password = (req.body.password || '').trim();
+  const phone    = sanitize(req.body.phone);
+  const location = sanitize(req.body.location);
+
+  if (!fullName) return res.status(400).json({ error: 'Full name is required.' });
+  if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
+  if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
+
   try {
     const hash = await bcrypt.hash(password, 10);
     
@@ -133,7 +173,8 @@ app.post('/api/register/worker', async (req, res) => {
 
 // 3. Login
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+  const email    = sanitize(req.body.email).toLowerCase();
+  const password = (req.body.password || '').trim();
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
   }
@@ -182,11 +223,18 @@ app.post('/api/worker/profile', upload.fields([
   { name: 'idPhoto', maxCount: 1 },
   { name: 'passportPhoto', maxCount: 1 }
 ]), (req, res) => {
-  const { userId, skills, experience, nationalId, recommendation } = req.body;
-  
-  if (!userId) {
+  const userId         = parseInt(req.body.userId, 10);
+  const skills         = sanitize(req.body.skills);
+  const experience     = sanitizeNumber(req.body.experience);
+  const nationalId     = sanitize(req.body.nationalId);
+  const recommendation = sanitize(req.body.recommendation);
+
+  if (!userId || isNaN(userId)) {
     return res.status(400).json({ error: 'userId is required' });
   }
+  if (!skills) return res.status(400).json({ error: 'Skills are required.' });
+  if (!experience) return res.status(400).json({ error: 'Experience is required.' });
+  if (!nationalId) return res.status(400).json({ error: 'National ID is required.' });
 
   const idPhotoPath = req.files && req.files['idPhoto'] ? req.files['idPhoto'][0].path : null;
   const passportPhotoPath = req.files && req.files['passportPhoto'] ? req.files['passportPhoto'][0].path : null;
@@ -257,9 +305,10 @@ app.get('/api/workers', (req, res) => {
 
 // 5. Create a Job Request (Employer -> Worker)
 app.post('/api/jobs/request', (req, res) => {
-  const { employerId, workerId } = req.body;
-  
-  if (!employerId || !workerId) return res.status(400).json({ error: 'Missing IDs' });
+  const employerId = parseInt(req.body.employerId, 10);
+  const workerId   = parseInt(req.body.workerId, 10);
+
+  if (!employerId || isNaN(employerId) || !workerId || isNaN(workerId)) return res.status(400).json({ error: 'Missing or invalid IDs.' });
 
   // Check if a pending request already exists
   db.get('SELECT * FROM job_requests WHERE employer_id = ? AND worker_id = ? AND status = "pending"', [employerId, workerId], (err, row) => {
@@ -321,8 +370,9 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
 
 // 7. Update Job Request Status (Accept/Decline)
 app.put('/api/jobs/:jobId/status', (req, res) => {
-  const { jobId } = req.params;
-  const { status, workerId } = req.body; // workerId to ensure security
+  const jobId    = parseInt(req.params.jobId, 10);
+  const status   = sanitize(req.body.status);
+  const workerId = parseInt(req.body.workerId, 10);
   
   if (!['accepted', 'declined'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
@@ -361,8 +411,15 @@ app.get('/api/worker/:id/profile', (req, res) => {
 
 // 9. Update Worker Profile
 app.put('/api/worker/:id/profile', (req, res) => {
-  const workerId = req.params.id;
-  const { full_name, phone, location, skills, experience } = req.body;
+  const workerId   = parseInt(req.params.id, 10);
+  const full_name  = sanitize(req.body.full_name);
+  const phone      = sanitize(req.body.phone);
+  const location   = sanitize(req.body.location);
+  const skills     = sanitize(req.body.skills);
+  const experience = sanitizeNumber(req.body.experience);
+
+  if (!full_name) return res.status(400).json({ error: 'Full name is required.' });
+  if (!phone)     return res.status(400).json({ error: 'Phone number is required.' });
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
@@ -385,8 +442,12 @@ app.put('/api/worker/:id/profile', (req, res) => {
 
 // 10. Update Worker Settings (Password)
 app.put('/api/worker/:id/settings', (req, res) => {
-  const userId = req.params.id;
-  const { currentPassword, newPassword } = req.body;
+  const userId          = parseInt(req.params.id, 10);
+  const currentPassword = (req.body.currentPassword || '').trim();
+  const newPassword     = (req.body.newPassword || '').trim();
+
+  if (!currentPassword) return res.status(400).json({ error: 'Current password is required.' });
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
 
   db.get('SELECT password_hash FROM users WHERE id = ?', [userId], async (err, row) => {
     if (err || !row) return res.status(404).json({ error: 'User not found' });
@@ -414,8 +475,13 @@ app.get('/api/employer/:id/profile', (req, res) => {
 
 // 12. Update Employer Profile
 app.put('/api/employer/:id/profile', (req, res) => {
-  const userId = req.params.id;
-  const { phone, location } = req.body;
+  const userId   = parseInt(req.params.id, 10);
+  const phone    = sanitize(req.body.phone);
+  const location = sanitize(req.body.location);
+
+  if (!phone)    return res.status(400).json({ error: 'Phone number is required.' });
+  if (!location) return res.status(400).json({ error: 'Location is required.' });
+
   db.run('UPDATE employers SET phone = ?, location = ? WHERE user_id = ?', [phone, location, userId], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to update profile' });
     if (this.changes === 0) return res.status(404).json({ error: 'Employer not found' });
@@ -425,8 +491,12 @@ app.put('/api/employer/:id/profile', (req, res) => {
 
 // 13. Update Employer Settings (Password)
 app.put('/api/employer/:id/settings', (req, res) => {
-  const userId = req.params.id;
-  const { currentPassword, newPassword } = req.body;
+  const userId          = parseInt(req.params.id, 10);
+  const currentPassword = (req.body.currentPassword || '').trim();
+  const newPassword     = (req.body.newPassword || '').trim();
+
+  if (!currentPassword) return res.status(400).json({ error: 'Current password is required.' });
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
   db.get('SELECT password_hash FROM users WHERE id = ?', [userId], async (err, row) => {
     if (err || !row) return res.status(404).json({ error: 'User not found' });
     const match = await bcrypt.compare(currentPassword, row.password_hash);
@@ -483,16 +553,16 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
 
 // 15. Create a new job posting (Employer)
 app.post('/api/jobs', (req, res) => {
-  const { employerId, title, description, location, salaryRange } = req.body;
-  
-  const cleanTitle = (title || '').trim();
-  const cleanDesc = (description || '').trim();
-  const cleanLoc = (location || '').trim();
-  const cleanSalary = (salaryRange || '').trim();
+  const employerId  = parseInt(req.body.employerId, 10);
+  const cleanTitle  = sanitize(req.body.title);
+  const cleanDesc   = sanitize(req.body.description);
+  const cleanLoc    = sanitize(req.body.location);
+  const cleanSalary = sanitize(req.body.salaryRange);
 
-  if (!employerId || !cleanTitle || !cleanDesc || !cleanLoc) {
-    return res.status(400).json({ error: 'Job title, description, and location are required.' });
-  }
+  if (!employerId || isNaN(employerId)) return res.status(400).json({ error: 'A valid employer ID is required.' });
+  if (!cleanTitle)  return res.status(400).json({ error: 'Job title is required.' });
+  if (!cleanDesc)   return res.status(400).json({ error: 'Job description is required.' });
+  if (!cleanLoc)    return res.status(400).json({ error: 'Location is required.' });
 
   // Verify that the user exists and is an employer
   db.get('SELECT role FROM users WHERE id = ?', [employerId], (err, user) => {
@@ -550,10 +620,11 @@ app.get('/api/employer/:id/jobs', (req, res) => {
 
 // 18. Worker applies for a job
 app.post('/api/jobs/:id/apply', (req, res) => {
-  const jobId = req.params.id;
-  const { workerId } = req.body;
-  
-  if (!workerId) return res.status(400).json({ error: 'Missing workerId' });
+  const jobId    = parseInt(req.params.id, 10);
+  const workerId = parseInt(req.body.workerId, 10);
+
+  if (!jobId || isNaN(jobId))       return res.status(400).json({ error: 'Invalid job ID.' });
+  if (!workerId || isNaN(workerId)) return res.status(400).json({ error: 'Missing or invalid workerId.' });
 
   // Check if application already exists
   db.get('SELECT * FROM job_applications WHERE job_id = ? AND worker_id = ?', [jobId, workerId], (err, row) => {

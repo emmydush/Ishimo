@@ -46,11 +46,20 @@ const WorkerProfile = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     const userId = localStorage.getItem('userId');
+    const cleaned = {
+      full_name:  profile.full_name.trim(),
+      phone:      profile.phone.trim(),
+      location:   profile.location.trim(),
+      skills:     profile.skills.trim(),
+      experience: String(profile.experience).trim(),
+    };
+    if (!cleaned.full_name) return showToast('Full name is required.', 'error');
+    if (!cleaned.phone)     return showToast('Phone number is required.', 'error');
     try {
       const response = await fetch(`http://localhost:3000/api/worker/${userId}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
+        body: JSON.stringify(cleaned)
       });
       if (response.ok) {
         showToast('Profile updated successfully!', 'success');
