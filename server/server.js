@@ -467,7 +467,7 @@ app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
 app.get('/api/worker/:id/profile', (req, res) => {
   const workerId = req.params.id;
   const query = `
-    SELECT w.full_name, w.phone, w.location, wp.skills, wp.experience
+    SELECT w.full_name, w.phone, w.location, wp.skills, wp.experience, wp.national_id, wp.id_photo_path, wp.passport_photo_path
     FROM workers w
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
     WHERE w.user_id = ?
@@ -475,21 +475,32 @@ app.get('/api/worker/:id/profile', (req, res) => {
   db.get(query, [workerId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!row) return res.status(404).json({ error: 'Worker not found' });
+    
+    if (row.id_photo_path) row.id_photo_url = `http://localhost:3000/${row.id_photo_path.replace(/\\/g, '/')}`;
+    if (row.passport_photo_path) row.passport_photo_url = `http://localhost:3000/${row.passport_photo_path.replace(/\\/g, '/')}`;
+    
     res.json(row);
   });
 });
 
 // 9. Update Worker Profile
-app.put('/api/worker/:id/profile', writeLimiter, (req, res) => {
+app.put('/api/worker/:id/profile', writeLimiter, upload.fields([
+  { name: 'idPhoto', maxCount: 1 },
+  { name: 'passportPhoto', maxCount: 1 }
+]), (req, res) => {
   const workerId   = parseInt(req.params.id, 10);
   const full_name  = sanitize(req.body.full_name);
   const phone      = sanitize(req.body.phone);
   const location   = sanitize(req.body.location);
   const skills     = sanitize(req.body.skills);
   const experience = sanitizeNumber(req.body.experience);
+  const nationalId = sanitize(req.body.national_id);
 
   if (!full_name) return res.status(400).json({ error: 'Full name is required.' });
   if (!phone)     return res.status(400).json({ error: 'Phone number is required.' });
+
+  const idPhotoPath = req.files && req.files['idPhoto'] ? req.files['idPhoto'][0].path.replace(/\\/g, '/') : null;
+  const passportPhotoPath = req.files && req.files['passportPhoto'] ? req.files['passportPhoto'][0].path.replace(/\\/g, '/') : null;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
@@ -498,13 +509,30 @@ app.put('/api/worker/:id/profile', writeLimiter, (req, res) => {
         db.run('ROLLBACK');
         return res.status(500).json({ error: 'Failed to update basic info' });
       }
-      db.run('UPDATE worker_profiles SET skills = ?, experience = ? WHERE worker_id = ?', [skills, experience, workerId], function(err) {
+
+      // Update worker_profiles. Build the query dynamically based on whether files were uploaded.
+      let updateProfileQuery = 'UPDATE worker_profiles SET skills = ?, experience = ?, national_id = ?';
+      const updateProfileParams = [skills, experience, nationalId];
+
+      if (idPhotoPath) {
+        updateProfileQuery += ', id_photo_path = ?';
+        updateProfileParams.push(idPhotoPath);
+      }
+      if (passportPhotoPath) {
+        updateProfileQuery += ', passport_photo_path = ?';
+        updateProfileParams.push(passportPhotoPath);
+      }
+      
+      updateProfileQuery += ' WHERE worker_id = ?';
+      updateProfileParams.push(workerId);
+
+      db.run(updateProfileQuery, updateProfileParams, function(err) {
         if (err) {
           db.run('ROLLBACK');
           return res.status(500).json({ error: 'Failed to update professional info' });
         }
         db.run('COMMIT');
-        logActivity(workerId, null, 'update_profile', 'worker', 'Worker updated their profile', req.ip);
+        logActivity(workerId, null, 'update_profile', 'worker', 'Worker updated their full profile', req.ip);
         res.json({ success: true });
       });
     });
