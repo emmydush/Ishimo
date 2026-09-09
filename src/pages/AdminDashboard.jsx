@@ -34,6 +34,15 @@ const AdminDashboard = () => {
     job_alert_email_enabled: 'true',
     admin_notification_email: 'admin@eliteconnect.com',
 
+    // SMTP Configuration
+    smtp_host: '',
+    smtp_port: '587',
+    smtp_secure: 'false',
+    smtp_user: '',
+    smtp_password: '',
+    smtp_from_email: 'noreply@eliteconnect.com',
+    smtp_from_name: 'EliteConnect',
+
     // Content Moderation Settings
     auto_moderate_jobs: 'true',
     require_job_approval: 'false',
@@ -768,6 +777,92 @@ const AdminDashboard = () => {
                     value={settings.admin_notification_email}
                     onChange={(e) => handleUpdateSetting('admin_notification_email', e.target.value)}
                   />
+                </div>
+
+                {/* SMTP Configuration */}
+                <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
+                  <h4 style={{ marginBottom: '16px', fontSize: '1rem', color: 'var(--text-secondary)' }}>SMTP Configuration</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Host</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="smtp.gmail.com"
+                        value={settings.smtp_host}
+                        onChange={(e) => handleUpdateSetting('smtp_host', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Port</label>
+                      <input
+                        type="number"
+                        className="input-field"
+                        placeholder="587"
+                        value={settings.smtp_port}
+                        onChange={(e) => handleUpdateSetting('smtp_port', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Username</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="your-email@gmail.com"
+                      value={settings.smtp_user}
+                      onChange={(e) => handleUpdateSetting('smtp_user', e.target.value)}
+                    />
+                  </div>
+                  <div style={{ marginTop: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Password</label>
+                    <input
+                      type="password"
+                      className="input-field"
+                      placeholder="Your SMTP password or app password"
+                      value={settings.smtp_password}
+                      onChange={(e) => handleUpdateSetting('smtp_password', e.target.value)}
+                    />
+                  </div>
+                  <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                    <input
+                      type="checkbox"
+                      id="smtp_secure"
+                      checked={settings.smtp_secure === 'true'}
+                      onChange={(e) => handleUpdateSetting('smtp_secure', e.target.checked.toString())}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <label htmlFor="smtp_secure" style={{ margin: 0, cursor: 'pointer' }}>
+                      Use SSL/TLS (Secure connection)
+                    </label>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>From Email</label>
+                      <input
+                        type="email"
+                        className="input-field"
+                        placeholder="noreply@eliteconnect.com"
+                        value={settings.smtp_from_email}
+                        onChange={(e) => handleUpdateSetting('smtp_from_email', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>From Name</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="EliteConnect"
+                        value={settings.smtp_from_name}
+                        onChange={(e) => handleUpdateSetting('smtp_from_name', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      <strong>Tip:</strong> For Gmail, use an App Password instead of your regular password. Enable 2FA and generate an App Password in your Google Account settings.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -14,6 +14,8 @@ import EmployerSettings from './pages/EmployerSettings';
 import EmployerPostJob from './pages/EmployerPostJob';
 import WorkerPublicProfile from './pages/WorkerPublicProfile';
 import AdminDashboard from './pages/AdminDashboard';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 function App() {
   return (
     <Router>
@@ -32,6 +34,10 @@ function App() {
         <Route path="/employer-settings" element={<EmployerSettings />} />
         <Route path="/employer-post-job" element={<EmployerPostJob />} />
         <Route path="/worker/:id" element={<WorkerPublicProfile />} />
+        
+        {/* Password Reset Routes */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />

@@ -16,9 +16,20 @@ const WorkerOnboarding = () => {
   });
   const [idPhoto, setIdPhoto] = useState(null);
   const [passportPhoto, setPassportPhoto] = useState(null);
+  const [additionalPhoto, setAdditionalPhoto] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (step === 2) {
+      let uploaded = 0;
+      if (idPhoto) uploaded++;
+      if (passportPhoto) uploaded++;
+      if (additionalPhoto) uploaded++;
+      if (uploaded < 2) {
+        showToast('You must upload at least two photos.', 'error');
+        return;
+      }
+    }
     if (step < 3) {
       setStep(step + 1);
     } else {
@@ -36,12 +47,20 @@ const WorkerOnboarding = () => {
       data.append('recommendation', formData.recommendation);
       if (idPhoto) data.append('idPhoto', idPhoto);
       if (passportPhoto) data.append('passportPhoto', passportPhoto);
+      if (additionalPhoto) data.append('additionalPhoto', additionalPhoto);
 
       try {
         const response = await fetch('http://localhost:3000/api/worker/profile', {
           method: 'POST',
           body: data
         });
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          showToast('Server returned an unexpected response. Please try again.', 'error');
+          return;
+        }
+
         const result = await response.json();
         
         if (response.ok) {
@@ -173,6 +192,8 @@ const WorkerOnboarding = () => {
               <FileUploadInput label="Upload National ID Photo" fileState={idPhoto} onChange={setIdPhoto} />
               <div style={{ height: '24px' }} />
               <FileUploadInput label="Upload Passport Photo" fileState={passportPhoto} onChange={setPassportPhoto} />
+              <div style={{ height: '24px' }} />
+              <FileUploadInput label="Upload Additional Photo (Optional)" fileState={additionalPhoto} onChange={setAdditionalPhoto} />
             </motion.div>
           )}
 

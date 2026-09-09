@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
 import {
   User, Phone, Mail, Briefcase, Clock, Star,
-  ShieldCheck, ChevronLeft, FileText, CreditCard, Send
+  ShieldCheck, ChevronLeft, FileText, CreditCard, Send, X
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -18,6 +18,7 @@ const WorkerPublicProfile = () => {
   const [requested, setRequested] = useState(false);
   const [applications, setApplications] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const fetchWorker = async () => {
@@ -148,7 +149,8 @@ const WorkerPublicProfile = () => {
                   <img
                     src={worker.passport_photo_url}
                     alt={worker.full_name}
-                    style={{ width: '110px', height: '110px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }}
+                    style={{ width: '110px', height: '110px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)', cursor: 'pointer' }}
+                    onClick={() => setSelectedImage(worker.passport_photo_url)}
                   />
                 ) : (
                   <div style={{ width: '110px', height: '110px', borderRadius: '50%', background: 'var(--bg-elevated)', border: '3px solid var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
@@ -168,10 +170,11 @@ const WorkerPublicProfile = () => {
               </div>
 
               {/* Stats row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                 {[
                   { label: 'Experience', value: `${worker.experience || 0} yrs`, icon: <Clock size={16} color="var(--accent-gold)" /> },
                   { label: 'Jobs Done', value: worker.completed_jobs, icon: <Briefcase size={16} color="var(--accent-emerald)" /> },
+                  { label: 'Profile Views', value: worker.profile_views || 0, icon: <User size={16} color="var(--accent-gold)" /> },
                 ].map(s => (
                   <div key={s.label} style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px 8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>{s.icon}</div>
@@ -184,9 +187,12 @@ const WorkerPublicProfile = () => {
               {/* Rating */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '24px' }}>
                 {[1,2,3,4,5].map(i => (
-                  <Star key={i} size={18} color="var(--accent-gold)" fill={i <= 5 ? "var(--accent-gold)" : "none"} />
+                  <Star key={i} size={18} color={worker.rating > 0 ? 'var(--accent-gold)' : 'var(--text-muted)'} fill={worker.rating > 0 && i <= Math.round(worker.rating) ? "var(--accent-gold)" : "none"} />
                 ))}
-                <span style={{ marginLeft: '8px', fontWeight: 600 }}>5.0</span>
+                <span style={{ marginLeft: '8px', fontWeight: 600 }}>{worker.rating > 0 ? worker.rating : 'No ratings'}</span>
+                {worker.rating_count > 0 && (
+                  <span style={{ marginLeft: '4px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>({worker.rating_count})</span>
+                )}
               </div>
 
               {/* Request Button */}
@@ -396,7 +402,8 @@ const WorkerPublicProfile = () => {
                       <img
                         src={worker.id_photo_url}
                         alt="National ID"
-                        style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }}
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                        onClick={() => setSelectedImage(worker.id_photo_url)}
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                       />
                       <div style={{ display: 'none', height: '160px', background: 'var(--bg-elevated)', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
@@ -425,7 +432,8 @@ const WorkerPublicProfile = () => {
                       <img
                         src={worker.passport_photo_url}
                         alt="Passport"
-                        style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }}
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                        onClick={() => setSelectedImage(worker.passport_photo_url)}
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                       />
                       <div style={{ display: 'none', height: '160px', background: 'var(--bg-elevated)', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
@@ -461,6 +469,64 @@ const WorkerPublicProfile = () => {
 
           </div>
         </div>
+
+        {/* Image Modal */}
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '20px'
+            }}
+          >
+            <motion.button
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                borderRadius: '50%',
+                padding: '12px',
+                cursor: 'pointer',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <X size={24} />
+            </motion.button>
+            <motion.img
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              src={selectedImage}
+              alt="Full size view"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                objectFit: 'contain',
+                borderRadius: '8px'
+              }}
+            />
+          </motion.div>
+        )}
       </div>
     </div>
   );

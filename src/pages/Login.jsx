@@ -76,7 +76,7 @@ const Login = () => {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
-          <div className="input-group" style={{ marginBottom: '32px' }}>
+          <div className="input-group" style={{ marginBottom: '12px' }}>
             <label className="input-label">Password</label>
             <input
               type="password"
@@ -86,6 +86,15 @@ const Login = () => {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
+          </div>
+
+          <div style={{ textAlign: 'right', marginBottom: '24px' }}>
+            <span
+              style={{ fontSize: '0.85rem', color: 'var(--accent-gold)', cursor: 'pointer' }}
+              onClick={() => navigate('/forgot-password')}
+            >
+              Forgot password?
+            </span>
           </div>
 
           <motion.button

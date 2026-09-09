@@ -5,10 +5,17 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const db = require('./database');
 
 const app = express();
 const PORT = 3000;
+
+// Admin credentials
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'admin123';
+const ADMIN_TOKEN = 'admin-secret-token-ishimo';
 
 // Middleware
 app.use(cors());
@@ -149,6 +156,63 @@ const createNotification = (userId, type, message) => {
     [userId, type, message],
     (err) => { if (err) console.error('Failed to create notification:', err.message); }
   );
+};
+
+// Helper: send email using configured SMTP settings
+const sendEmail = async (to, subject, html) => {
+  try {
+    // Get SMTP settings from admin_settings
+    db.all("SELECT key, value FROM admin_settings WHERE key IN ('smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_password', 'smtp_from_email', 'smtp_from_name', 'email_notifications_enabled')", [], async (err, rows) => {
+      if (err) {
+        console.error('Failed to fetch SMTP settings:', err.message);
+        return false;
+      }
+
+      const settings = {};
+      if (Array.isArray(rows)) {
+        rows.forEach(row => settings[row.key] = row.value);
+      } else if (rows) {
+        settings[rows.key] = rows.value;
+      }
+
+      // Check if email notifications are enabled
+      if (settings.email_notifications_enabled !== 'true') {
+        console.log('Email notifications are disabled');
+        return false;
+      }
+
+      // Check if SMTP is configured
+      if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+        console.log('SMTP not configured, skipping email send');
+        return false;
+      }
+
+      // Create transporter
+      const transporter = nodemailer.createTransport({
+        host: settings.smtp_host,
+        port: parseInt(settings.smtp_port) || 587,
+        secure: settings.smtp_secure === 'true',
+        auth: {
+          user: settings.smtp_user,
+          pass: settings.smtp_password
+        }
+      });
+
+      // Send email
+      const info = await transporter.sendMail({
+        from: `"${settings.smtp_from_name || 'Ishimo'}" <${settings.smtp_from_email || settings.smtp_user}>`,
+        to: to,
+        subject: subject,
+        html: html
+      });
+
+      console.log('Email sent:', info.messageId);
+      return true;
+    });
+  } catch (error) {
+    console.error('Failed to send email:', error.message);
+    return false;
+  }
 };
 
 // Ensure uploads directory exists
@@ -325,11 +389,12 @@ app.post('/api/login', authLimiter, async (req, res) => {
 // 4. Worker Onboarding (Profile Completion)
 app.post('/api/worker/profile', writeLimiter, upload.fields([
   { name: 'idPhoto', maxCount: 1 },
-  { name: 'passportPhoto', maxCount: 1 }
+  { name: 'passportPhoto', maxCount: 1 },
+  { name: 'additionalPhoto', maxCount: 1 }
 ]), (req, res) => {
   const userId         = parseInt(req.body.userId, 10);
   const skills         = sanitize(req.body.skills);
-  const experience     = sanitizeNumber(req.body.experience);
+  const experience     = parseInt(req.body.experience, 10);
   const nationalId     = sanitize(req.body.nationalId);
   const recommendation = sanitize(req.body.recommendation);
 
@@ -345,13 +410,14 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
 
   const idPhotoPath = req.files && req.files['idPhoto'] ? req.files['idPhoto'][0].path : null;
   const passportPhotoPath = req.files && req.files['passportPhoto'] ? req.files['passportPhoto'][0].path : null;
+  const additionalPhotoPath = req.files && req.files['additionalPhoto'] ? req.files['additionalPhoto'][0].path : null;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     db.run(`
-      INSERT INTO worker_profiles (worker_id, skills, experience, national_id, id_photo_path, passport_photo_path, recommendation) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [userId, skills, experience, nationalId, idPhotoPath, passportPhotoPath, recommendation], function(err) {
+      INSERT INTO worker_profiles (worker_id, skills, experience, national_id, id_photo_path, passport_photo_path, additional_photo_path, recommendation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [userId, skills, experience, nationalId, idPhotoPath, passportPhotoPath, additionalPhotoPath, recommendation], function(err) {
       if (err) {
         db.run('ROLLBACK');
         return res.status(500).json({ error: 'Failed to save profile details' });
@@ -378,6 +444,7 @@ app.get('/api/workers', readLimiter, (req, res) => {
       w.user_id as id, 
       w.full_name as name, 
       w.location,
+      w.profile_views,
       wp.skills, 
       wp.experience, 
       w.status,
@@ -400,15 +467,36 @@ app.get('/api/workers', readLimiter, (req, res) => {
         name: row.name,
         role: 'Verified Professional',
         exp: row.experience + ' yrs',
-        rating: 4.9, // Mocked for now
+        rating: 0, // Will be calculated below
         location: row.location || 'Not specified',
         skills: row.skills ? row.skills.split(',').map(s => s.trim()) : [],
         verified: true,
+        profile_views: row.profile_views || 0,
         image: filename ? `http://localhost:3000/uploads/${filename}` : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
       };
     });
     
-    res.json(workers);
+    // Calculate ratings for each worker
+    const workersWithRatings = workers.map(worker => {
+      return new Promise((resolve) => {
+        db.get(
+          'SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = ?',
+          [worker.id],
+          (err, ratingRow) => {
+            if (err || !ratingRow || ratingRow.rating_count === 0) {
+              worker.rating = 0;
+            } else {
+              worker.rating = Math.round(ratingRow.avg_rating * 10) / 10; // Round to 1 decimal
+            }
+            resolve(worker);
+          }
+        );
+      });
+    });
+    
+    Promise.all(workersWithRatings).then(results => {
+      res.json(results);
+    });
   });
 });
 
@@ -526,7 +614,11 @@ app.get('/api/worker/:id/profile', (req, res) => {
       const filename = path.basename(row.passport_photo_path);
       row.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
     }
-    
+    if (row.additional_photo_path) {
+      const filename = path.basename(row.additional_photo_path);
+      row.additional_photo_url = `http://localhost:3000/uploads/${filename}`;
+    }
+
     res.json(row);
   });
 });
@@ -534,17 +626,17 @@ app.get('/api/worker/:id/profile', (req, res) => {
 // 9. Update Worker Profile
 app.put('/api/worker/:id/profile', writeLimiter, upload.fields([
   { name: 'idPhoto', maxCount: 1 },
-  { name: 'passportPhoto', maxCount: 1 }
+  { name: 'passportPhoto', maxCount: 1 },
+  { name: 'additionalPhoto', maxCount: 1 }
 ]), (req, res) => {
   const workerId   = parseInt(req.params.id, 10);
   const full_name  = sanitize(req.body.full_name);
   const phone      = sanitize(req.body.phone);
   const location   = sanitize(req.body.location);
   const skills     = sanitize(req.body.skills);
-  const experience = sanitizeNumber(req.body.experience);
-  const nationalId = sanitize(req.body.national_id);
+  const experience = parseInt(req.body.experience, 10);
+  const nationalId = sanitize(req.body.nationalId);
 
-  if (!full_name) return res.status(400).json({ error: 'Full name is required.' });
   if (!phone)     return res.status(400).json({ error: 'Phone number is required.' });
   if (nationalId && !/^\d{15}$/.test(nationalId)) {
     return res.status(400).json({ error: 'National ID must be exactly 15 digits.' });
@@ -552,6 +644,7 @@ app.put('/api/worker/:id/profile', writeLimiter, upload.fields([
 
   const idPhotoPath = req.files && req.files['idPhoto'] ? req.files['idPhoto'][0].path.replace(/\\/g, '/') : null;
   const passportPhotoPath = req.files && req.files['passportPhoto'] ? req.files['passportPhoto'][0].path.replace(/\\/g, '/') : null;
+  const additionalPhotoPath = req.files && req.files['additionalPhoto'] ? req.files['additionalPhoto'][0].path.replace(/\\/g, '/') : null;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
@@ -573,7 +666,11 @@ app.put('/api/worker/:id/profile', writeLimiter, upload.fields([
         updateProfileQuery += ', passport_photo_path = ?';
         updateProfileParams.push(passportPhotoPath);
       }
-      
+      if (additionalPhotoPath) {
+        updateProfileQuery += ', additional_photo_path = ?';
+        updateProfileParams.push(additionalPhotoPath);
+      }
+
       updateProfileQuery += ' WHERE worker_id = ?';
       updateProfileParams.push(workerId);
 
@@ -672,6 +769,7 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
       w.phone,
       w.location,
       w.status,
+      w.profile_views,
       u.email,
       wp.skills,
       wp.experience,
@@ -688,6 +786,11 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!row) return res.status(404).json({ error: 'Worker not found' });
 
+    // Increment profile views
+    db.run('UPDATE workers SET profile_views = profile_views + 1 WHERE user_id = ?', [workerId], (incrementErr) => {
+      if (incrementErr) console.error('Failed to increment profile views:', incrementErr.message);
+    });
+
     // Format passport photo for display
     if (row.passport_photo_path) {
       const filename = path.basename(row.passport_photo_path);
@@ -697,11 +800,27 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
       const filename = path.basename(row.id_photo_path);
       row.id_photo_url = `http://localhost:3000/uploads/${filename}`;
     }
+    if (row.additional_photo_path) {
+      const filename = path.basename(row.additional_photo_path);
+      row.additional_photo_url = `http://localhost:3000/uploads/${filename}`;
+    }
 
     // Get completed job count (accepted requests)
     db.get('SELECT COUNT(*) as completed_jobs FROM job_requests WHERE worker_id = ? AND status = "accepted"', [workerId], (err2, countRow) => {
       row.completed_jobs = countRow ? countRow.completed_jobs : 0;
-      res.json(row);
+      
+      // Get rating average
+      db.get('SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = ?', [workerId], (err3, ratingRow) => {
+        if (err3 || !ratingRow || ratingRow.rating_count === 0) {
+          row.rating = 0;
+          row.rating_count = 0;
+        } else {
+          row.rating = Math.round(ratingRow.avg_rating * 10) / 10;
+          row.rating_count = ratingRow.rating_count;
+        }
+        row.profile_views = row.profile_views || 0;
+        res.json(row);
+      });
     });
   });
 });
@@ -879,11 +998,70 @@ app.get('/api/worker/:id/applications', (req, res) => {
   });
 });
 
-// ─── ADMIN PANEL ROUTES ──────────────────────────────────────────────────────
+// 21. Employer rates a worker
+app.post('/api/worker/:id/rating', writeLimiter, (req, res) => {
+  const workerId = parseInt(req.params.id, 10);
+  const employerId = parseInt(req.body.employerId, 10);
+  const rating = parseInt(req.body.rating, 10);
+  const comment = sanitize(req.body.comment);
 
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin123';
-const ADMIN_TOKEN    = 'admin-secret-token-ishimo';
+  if (!workerId || isNaN(workerId)) return res.status(400).json({ error: 'Invalid worker ID.' });
+  if (!employerId || isNaN(employerId)) return res.status(400).json({ error: 'Invalid employer ID.' });
+  if (!rating || isNaN(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
+
+  // Check if employer has already rated this worker
+  db.get('SELECT * FROM worker_ratings WHERE worker_id = ? AND employer_id = ?', [workerId, employerId], (err, existingRating) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    
+    if (existingRating) {
+      // Update existing rating
+      db.run(
+        'UPDATE worker_ratings SET rating = ?, comment = ? WHERE worker_id = ? AND employer_id = ?',
+        [rating, comment, workerId, employerId],
+        function(err) {
+          if (err) return res.status(500).json({ error: 'Failed to update rating' });
+          logActivity(employerId, null, 'rate_worker', 'rating', `Employer updated rating for worker ${workerId} to ${rating}`, req.ip);
+          res.json({ success: true, message: 'Rating updated successfully' });
+        }
+      );
+    } else {
+      // Insert new rating
+      db.run(
+        'INSERT INTO worker_ratings (worker_id, employer_id, rating, comment) VALUES (?, ?, ?, ?)',
+        [workerId, employerId, rating, comment],
+        function(err) {
+          if (err) return res.status(500).json({ error: 'Failed to submit rating' });
+          logActivity(employerId, null, 'rate_worker', 'rating', `Employer rated worker ${workerId} with ${rating} stars`, req.ip);
+          res.status(201).json({ success: true, message: 'Rating submitted successfully' });
+        }
+      );
+    }
+  });
+});
+
+// 22. Get worker ratings
+app.get('/api/worker/:id/ratings', (req, res) => {
+  const workerId = req.params.id;
+  const query = `
+    SELECT 
+      wr.rating,
+      wr.comment,
+      wr.created_at,
+      e.user_id as employer_id,
+      u.email as employer_email
+    FROM worker_ratings wr
+    JOIN employers e ON wr.employer_id = e.user_id
+    JOIN users u ON e.user_id = u.id
+    WHERE wr.worker_id = ?
+    ORDER BY wr.created_at DESC
+  `;
+  db.all(query, [workerId], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Failed to fetch ratings' });
+    res.json(rows);
+  });
+});
+
+// ─── ADMIN PANEL ROUTES ──────────────────────────────────────────────────────
 
 // Admin auth middleware
 const adminAuth = (req, res, next) => {
@@ -908,10 +1086,16 @@ app.get('/api/admin/settings', adminLimiter, adminAuth, (req, res) => {
 app.put('/api/admin/settings/:key', adminLimiter, adminAuth, (req, res) => {
   const { key } = req.params;
   const { value } = req.body;
-  if (!value) return res.status(400).json({ error: 'Value is required' });
+  if (value === undefined || value === null) return res.status(400).json({ error: 'Value is required' });
+
+  console.log(`Updating setting: ${key} = ${value}`);
 
   db.run('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [key, value], function(err) {
-    if (err) return res.status(500).json({ error: 'Failed to update setting' });
+    if (err) {
+      console.error('Failed to update setting:', err.message);
+      return res.status(500).json({ error: 'Failed to update setting: ' + err.message });
+    }
+    console.log(`Setting ${key} updated successfully`);
     res.json({ success: true });
   });
 });
@@ -1176,6 +1360,136 @@ app.put('/api/notifications/:userId/read-all', (req, res) => {
     if (err) return res.status(500).json({ error: 'Failed to mark all as read' });
     res.json({ success: true });
   });
+});
+
+// 24. Forgot Password - Request reset token
+app.post('/api/forgot-password', authLimiter, (req, res) => {
+  const email = sanitize(req.body.email).toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  db.get('SELECT id FROM users WHERE email = ?', [email], (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.json({ success: true, message: 'If the email exists, a reset link has been sent' });
+    }
+
+    // Generate reset token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+
+    // Delete any existing tokens for this user
+    db.run('DELETE FROM password_reset_tokens WHERE user_id = ?', [user.id], (err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to process request' });
+      }
+
+      // Insert new token
+      db.run(
+        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+        [user.id, token, expiresAt],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Failed to generate reset token' });
+          }
+
+          // Send email with reset link
+          const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #333;">Password Reset Request</h2>
+              <p style="color: #666;">You requested a password reset for your Ishimo account.</p>
+              <p style="color: #666;">Click the link below to reset your password:</p>
+              <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%); color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Reset Password</a>
+              <p style="color: #666; margin-top: 20px;">Or copy and paste this link into your browser:</p>
+              <p style="color: #666; word-break: break-all;">${resetLink}</p>
+              <p style="color: #999; font-size: 12px; margin-top: 30px;">This link will expire in 1 hour. If you didn't request this, please ignore this email.</p>
+            </div>
+          `;
+
+          sendEmail(email, 'Password Reset Request', emailHtml);
+
+          // For development, also log the token
+          console.log(`Password reset token for ${email}: ${token}`);
+          console.log(`Reset link: ${resetLink}`);
+
+          res.json({
+            success: true,
+            message: 'If the email exists, a reset link has been sent'
+          });
+        }
+      );
+    });
+  });
+});
+
+// 25. Reset Password with token
+app.post('/api/reset-password', authLimiter, async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  // Find valid token
+  db.get(
+    'SELECT user_id, expires_at, used FROM password_reset_tokens WHERE token = ?',
+    [token],
+    async (err, tokenRow) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      if (!tokenRow) {
+        return res.status(400).json({ error: 'Invalid or expired reset token' });
+      }
+
+      if (tokenRow.used === 1) {
+        return res.status(400).json({ error: 'Reset token has already been used' });
+      }
+
+      if (new Date(tokenRow.expires_at) < new Date()) {
+        return res.status(400).json({ error: 'Reset token has expired' });
+      }
+
+      // Hash new password
+      const hash = await bcrypt.hash(newPassword, 10);
+
+      // Update user password
+      db.run(
+        'UPDATE users SET password_hash = ? WHERE id = ?',
+        [hash, tokenRow.user_id],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Failed to update password' });
+          }
+
+          // Mark token as used
+          db.run(
+            'UPDATE password_reset_tokens SET used = 1 WHERE token = ?',
+            [token],
+            (err) => {
+              if (err) {
+                console.error('Failed to mark token as used:', err);
+              }
+            }
+          );
+
+          res.json({ success: true, message: 'Password has been reset successfully' });
+        }
+      );
+    }
+  );
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {

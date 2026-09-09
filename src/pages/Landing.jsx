@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Users, Star, LogIn, Check, Crown, Briefcase } from 'lucide-react';
+import { ShieldCheck, Users, Star, LogIn, Check, Crown, Briefcase, Mail, Phone, MapPin } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -267,6 +267,92 @@ const Landing = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Footer */}
+      <footer style={{ width: '100%', marginTop: '80px', padding: '40px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-elevated)' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div className="responsive-grid-3" style={{ gap: '32px', marginBottom: '40px' }}>
+            {/* Company Info */}
+            <div>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-gold)' }}>EliteConnect</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '20px' }}>
+                The world's premier household professional network. Connecting elite workers with discerning employers since 2024.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  <Mail size={16} /> contact@eliteconnect.com
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  <Phone size={16} /> +1 (555) 123-4567
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  <MapPin size={16} /> Global Services
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Quick Links</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {[
+                  { label: 'Find Workers', action: () => navigate('/register-employer') },
+                  { label: 'Find Jobs', action: () => navigate('/register-worker') },
+                  { label: 'About Us', action: () => {} },
+                  { label: 'How It Works', action: () => {} }
+                ].map((link, idx) => (
+                  <li key={idx} style={{ marginBottom: '12px' }}>
+                    <span
+                      style={{ color: 'var(--text-muted)', fontSize: '0.9rem', cursor: 'pointer', transition: 'color 0.2s' }}
+                      onMouseEnter={(e) => e.target.style.color = 'var(--accent-gold)'}
+                      onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
+                      onClick={link.action}
+                    >
+                      {link.label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Legal</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {[
+                  { label: 'Privacy Policy', action: () => {} },
+                  { label: 'Terms of Service', action: () => {} },
+                  { label: 'Cookie Policy', action: () => {} },
+                  { label: 'Contact Support', action: () => {} }
+                ].map((link, idx) => (
+                  <li key={idx} style={{ marginBottom: '12px' }}>
+                    <span
+                      style={{ color: 'var(--text-muted)', fontSize: '0.9rem', cursor: 'pointer', transition: 'color 0.2s' }}
+                      onMouseEnter={(e) => e.target.style.color = 'var(--accent-gold)'}
+                      onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
+                      onClick={link.action}
+                    >
+                      {link.label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div style={{ paddingTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              © 2024 EliteConnect. All rights reserved.
+            </p>
+            <div style={{ display: 'flex', gap: '24px' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Privacy</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Terms</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Cookies</span>
+            </div>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );

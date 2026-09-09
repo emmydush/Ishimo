@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Search, Filter, MapPin, Star, ShieldCheck, CheckCircle } from 'lucide-react';
+import { Search, Filter, MapPin, Star, ShieldCheck, CheckCircle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +17,7 @@ const EmployerDashboard = () => {
   const [showBanner, setShowBanner] = useState(!!location.state?.newlyPosted);
   const [myJobs, setMyJobs] = useState([]);
   const [jobApplications, setJobApplications] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     if (location.state?.activeTab) {
@@ -232,7 +233,8 @@ const EmployerDashboard = () => {
                       <img 
                         src={worker.image} 
                         alt={worker.name} 
-                        style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }} 
+                        style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', cursor: 'pointer' }}
+                        onClick={() => setSelectedImage(worker.image)}
                       />
                       <div>
                         <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -254,9 +256,13 @@ const EmployerDashboard = () => {
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Rating</div>
                         <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Star size={14} color="var(--accent-gold)" fill="var(--accent-gold)" />
-                          {worker.rating}
+                          <Star size={14} color={worker.rating > 0 ? 'var(--accent-gold)' : 'var(--text-muted)'} fill={worker.rating > 0 ? 'var(--accent-gold)' : 'none'} />
+                          {worker.rating > 0 ? worker.rating : 'N/A'}
                         </div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Views</div>
+                        <div style={{ fontWeight: 600 }}>{worker.profile_views || 0}</div>
                       </div>
                     </div>
 
@@ -407,6 +413,64 @@ const EmployerDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setSelectedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+        >
+          <motion.button
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              padding: '12px',
+              cursor: 'pointer',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <X size={24} />
+          </motion.button>
+          <motion.img
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            src={selectedImage}
+            alt="Full size view"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: '8px'
+            }}
+          />
+        </motion.div>
+      )}
     </div>
   );
 };
