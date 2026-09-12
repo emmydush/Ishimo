@@ -635,7 +635,7 @@ app.get('/api/workers', readLimiter, (req, res) => {
       wp.passport_photo_path as image
     FROM workers w
     JOIN worker_profiles wp ON w.user_id = wp.worker_id
-    WHERE w.status = 'completed'
+    WHERE w.status IN ('completed', 'available', 'hired', 'unavailable')
   `;
   
   db.all(query, [], (err, rows) => {
