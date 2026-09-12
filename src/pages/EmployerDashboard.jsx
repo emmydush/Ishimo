@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Search, Filter, MapPin, Star, ShieldCheck, CheckCircle, X } from 'lucide-react';
+import { Search, Filter, MapPin, Star, ShieldCheck, CheckCircle, X, Phone, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
@@ -18,6 +18,10 @@ const EmployerDashboard = () => {
   const [myJobs, setMyJobs] = useState([]);
   const [jobApplications, setJobApplications] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingWorker, setRatingWorker] = useState(null);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
 
   useEffect(() => {
     if (location.state?.activeTab) {
@@ -102,6 +106,44 @@ const EmployerDashboard = () => {
       }
     } catch (err) {
       showToast('Network error while updating status', 'error');
+    }
+  };
+
+  const handleRateWorker = async () => {
+    if (!ratingWorker || ratingValue === 0) {
+      showToast('Please select a rating', 'error');
+      return;
+    }
+
+    const employerId = localStorage.getItem('userId');
+    if (!employerId) return showToast('You must be logged in', 'error');
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/worker/${ratingWorker.worker_id}/rating`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employerId: parseInt(employerId),
+          rating: ratingValue,
+          comment: ratingComment
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast(data.message || 'Rating submitted successfully!', 'success');
+        setShowRatingModal(false);
+        setRatingValue(0);
+        setRatingComment('');
+        setRatingWorker(null);
+        // Refresh workers to update ratings
+        const resWorkers = await fetch('http://localhost:3000/api/workers');
+        const dataWorkers = await resWorkers.json();
+        setWorkers(dataWorkers);
+      } else {
+        showToast(data.error || 'Failed to submit rating', 'error');
+      }
+    } catch (err) {
+      showToast('Network error while submitting rating', 'error');
     }
   };
 
@@ -245,6 +287,42 @@ const EmployerDashboard = () => {
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <MapPin size={14} /> {worker.location}
                         </div>
+                        <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontWeight: 500,
+                            background: worker.availability === 'available' ? 'rgba(16, 185, 129, 0.15)' : 
+                                       worker.availability === 'busy' ? 'rgba(245, 158, 11, 0.15)' : 
+                                       worker.availability === 'unavailable' ? 'rgba(107, 114, 128, 0.15)' :
+                                       'rgba(59, 130, 246, 0.15)',
+                            color: worker.availability === 'available' ? '#10b981' : 
+                                   worker.availability === 'busy' ? '#f59e0b' : 
+                                   worker.availability === 'unavailable' ? '#6b7280' :
+                                   '#3b82f6'
+                          }}>
+                            {worker.availability || 'Unknown'}
+                          </span>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontWeight: 500,
+                            background: worker.status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 
+                                       worker.status === 'pending' ? 'rgba(168, 85, 247, 0.15)' : 
+                                       worker.status === 'suspended' ? 'rgba(239, 68, 68, 0.15)' : 
+                                       worker.status === 'active' ? 'rgba(34, 197, 94, 0.15)' :
+                                       'rgba(107, 114, 128, 0.15)',
+                            color: worker.status === 'completed' ? '#10b981' : 
+                                   worker.status === 'pending' ? '#a855f7' : 
+                                   worker.status === 'suspended' ? '#ef4444' : 
+                                   worker.status === 'active' ? '#22c55e' :
+                                   '#6b7280'
+                          }}>
+                            {worker.status || 'Unknown'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -273,6 +351,56 @@ const EmployerDashboard = () => {
                         </span>
                       ))}
                     </div>
+
+                    {/* Contact Icons */}
+                    {worker.phone && (
+                      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                        <motion.a
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          href={`tel:${worker.phone}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 16px',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            color: '#22c55e',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            border: '1px solid rgba(34, 197, 94, 0.3)'
+                          }}
+                        >
+                          <Phone size={16} />
+                          Call
+                        </motion.a>
+                        <motion.a
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          href={`https://wa.me/${worker.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 16px',
+                            background: 'rgba(37, 211, 102, 0.1)',
+                            color: '#25D366',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            border: '1px solid rgba(37, 211, 102, 0.3)'
+                          }}
+                        >
+                          <MessageCircle size={16} />
+                          WhatsApp
+                        </motion.a>
+                      </div>
+                    )}
 
                     {/* Action Buttons */}
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -374,6 +502,18 @@ const EmployerDashboard = () => {
                                         <motion.button
                                           whileHover={{ scale: 1.02 }}
                                           whileTap={{ scale: 0.98 }}
+                                          onClick={() => {
+                                            setRatingWorker(app);
+                                            setShowRatingModal(true);
+                                          }}
+                                          className="btn-outline"
+                                          style={{ padding: '6px 12px', fontSize: '0.8rem', marginLeft: '8px' }}
+                                        >
+                                          Rate
+                                        </motion.button>
+                                        <motion.button
+                                          whileHover={{ scale: 1.02 }}
+                                          whileTap={{ scale: 0.98 }}
                                           onClick={() => handleUpdateApplicationStatus(app.application_id, 'fired')}
                                           className="btn-outline"
                                           style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444', marginLeft: '8px' }}
@@ -469,6 +609,107 @@ const EmployerDashboard = () => {
               borderRadius: '8px'
             }}
           />
+        </motion.div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && ratingWorker && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowRatingModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-elevated)',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '400px',
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <h3 style={{ marginBottom: '16px', fontSize: '1.3rem' }}>Rate Worker</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Rate your experience with <strong>{ratingWorker.worker_name}</strong>
+            </p>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Rating</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <Star
+                    key={star}
+                    size={32}
+                    color={star <= ratingValue ? 'var(--accent-gold)' : 'var(--text-muted)'}
+                    fill={star <= ratingValue ? 'var(--accent-gold)' : 'none'}
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                    onMouseEnter={() => setRatingValue(star)}
+                    onClick={() => setRatingValue(star)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Comment (optional)</label>
+              <textarea
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                placeholder="Share your experience with this worker..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  resize: 'vertical',
+                  minHeight: '80px',
+                  fontSize: '0.95rem'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRatingValue(0);
+                  setRatingComment('');
+                  setRatingWorker(null);
+                }}
+                className="btn-outline"
+                style={{ padding: '10px 20px' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRateWorker}
+                className="btn-premium"
+                style={{ padding: '10px 20px', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000' }}
+              >
+                Submit Rating
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </div>

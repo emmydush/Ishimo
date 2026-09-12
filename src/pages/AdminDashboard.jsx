@@ -375,7 +375,7 @@ const AdminDashboard = () => {
                     </td>
                     <td style={{ padding: '16px' }}>{w.location || '—'}</td>
                     <td style={{ padding: '16px' }}>
-                      <Badge type={w.status === 'completed' ? 'emerald' : w.status === 'pending' ? 'gold' : 'error'}>
+                      <Badge type={w.status === 'available' ? 'emerald' : w.status === 'hired' ? 'gold' : w.status === 'fired' ? 'error' : 'muted'}>
                         {w.status}
                       </Badge>
                     </td>
@@ -399,21 +399,24 @@ const AdminDashboard = () => {
                       </select>
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                      {w.status === 'pending' && (
-                        <button onClick={() => handleStatusUpdate('worker', w.id, 'completed')} style={{ color: 'var(--accent-emerald)', padding: '6px', background: 'rgba(16,185,129,0.1)', borderRadius: '6px' }}>
-                          Approve
-                        </button>
-                      )}
-                      {w.status !== 'suspended' && (
-                        <button onClick={() => handleStatusUpdate('worker', w.id, 'suspended')} style={{ color: '#ef4444', padding: '6px', background: 'rgba(239,68,68,0.1)', borderRadius: '6px' }}>
-                          Suspend
-                        </button>
-                      )}
-                      {w.status === 'suspended' && (
-                        <button onClick={() => handleStatusUpdate('worker', w.id, 'completed')} style={{ color: 'var(--accent-emerald)', padding: '6px', background: 'rgba(16,185,129,0.1)', borderRadius: '6px' }}>
-                          Unsuspend
-                        </button>
-                      )}
+                      <select
+                        value={w.status || 'available'}
+                        onChange={(e) => handleStatusUpdate('worker', w.id, e.target.value)}
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-main)',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="available">Available</option>
+                        <option value="hired">Hired</option>
+                        <option value="fired">Fired</option>
+                        <option value="unavailable">Unavailable</option>
+                      </select>
                       <button onClick={() => handleResetUserPassword(w.id)} style={{ color: 'var(--text-main)', padding: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', border: '1px solid var(--border-color)' }} title="Reset Password">
                         Reset Password
                       </button>

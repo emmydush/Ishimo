@@ -123,6 +123,87 @@ setTimeout(() => {
     }
   });
 
+  // Add admin_notification_email setting if not exists
+  db.run(`INSERT OR IGNORE INTO admin_settings (key, value) VALUES ('admin_notification_email', '')`, (err) => {
+    if (err) console.error('Migration error (admin_notification_email):', err.message);
+  });
+
+  // Migrate old admin_email to admin_notification_email if exists
+  db.get("SELECT value FROM admin_settings WHERE key = 'admin_email'", [], (err, row) => {
+    if (!err && row && row.value && row.value !== '') {
+      db.run("UPDATE admin_settings SET value = ? WHERE key = 'admin_notification_email'", [row.value], (err) => {
+        if (err) console.error('Migration error (admin_email migration):', err.message);
+        else {
+          console.log('Migrated admin_email to admin_notification_email');
+          // Remove old admin_email setting after migration
+          db.run(`DELETE FROM admin_settings WHERE key = 'admin_email'`, (err) => {
+            if (err && !err.message.includes('no such table')) {
+              console.error('Migration error (removing admin_email):', err.message);
+            }
+          });
+        }
+      });
+    }
+  });
+
+  // Initialize default admin settings if they don't exist
+  const defaultSettings = {
+    // Platform Settings
+    site_name: 'Ishimo',
+    site_description: 'Connecting workers with employers',
+    maintenance_mode: 'false',
+    maintenance_message: 'Site is under maintenance. Please check back later.',
+
+    // Registration Settings
+    allow_registration: 'true',
+    max_workers_per_employer: '10',
+    require_worker_verification: 'true',
+    require_employer_verification: 'false',
+
+    // Email/Notification Settings
+    email_notifications_enabled: 'true',
+    welcome_email_enabled: 'true',
+    job_alert_email_enabled: 'true',
+
+    // SMTP Configuration
+    smtp_host: '',
+    smtp_port: '587',
+    smtp_secure: 'false',
+    smtp_user: '',
+    smtp_password: '',
+    smtp_from_email: 'noreply@ishimo.com',
+    smtp_from_name: 'Ishimo',
+
+    // Content Moderation Settings
+    auto_moderate_jobs: 'true',
+    require_job_approval: 'false',
+    profanity_filter_enabled: 'true',
+    max_job_description_length: '5000',
+
+    // API/Rate Limit Settings
+    api_rate_limit_enabled: 'true',
+    api_rate_limit_window: '15',
+    api_rate_limit_max_requests: '100',
+
+    // User Management Settings
+    user_session_timeout: '30',
+    password_min_length: '8',
+    password_require_special_char: 'true',
+    account_inactivity_days: '90',
+
+    // Job Posting Settings
+    max_active_jobs_per_employer: '20',
+    job_expiry_days: '30',
+    allow_job_editing: 'true',
+    allow_job_deletion: 'true'
+  };
+
+  Object.entries(defaultSettings).forEach(([key, value]) => {
+    db.run(`INSERT OR IGNORE INTO admin_settings (key, value) VALUES (?, ?)`, [key, value], (err) => {
+      if (err) console.error(`Migration error (${key}):`, err.message);
+    });
+  });
+
   // Activity logs table
   db.run(`
     CREATE TABLE IF NOT EXISTS activity_logs (
@@ -159,35 +240,59 @@ const createNotification = (userId, type, message) => {
 };
 
 // Helper: send email using configured SMTP settings
-const sendEmail = async (to, subject, html) => {
-  try {
-    // Get SMTP settings from admin_settings
-    db.all("SELECT key, value FROM admin_settings WHERE key IN ('smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_password', 'smtp_from_email', 'smtp_from_name', 'email_notifications_enabled')", [], async (err, rows) => {
-      if (err) {
-        console.error('Failed to fetch SMTP settings:', err.message);
-        return false;
-      }
+const sendEmail = (to, subject, html, callback) => {
+  console.log(`[EMAIL] Attempting to send email to: ${to}, subject: ${subject}`);
+  
+  // Get SMTP settings from admin_settings
+  db.all("SELECT key, value FROM admin_settings WHERE key IN ('smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_password', 'smtp_from_email', 'smtp_from_name', 'email_notifications_enabled')", [], async (err, rows) => {
+    if (err) {
+      console.error('[EMAIL] Failed to fetch SMTP settings:', err.message);
+      return callback && callback(false);
+    }
 
-      const settings = {};
-      if (Array.isArray(rows)) {
-        rows.forEach(row => settings[row.key] = row.value);
-      } else if (rows) {
-        settings[rows.key] = rows.value;
-      }
+    const settings = {};
+    if (Array.isArray(rows)) {
+      rows.forEach(row => settings[row.key] = row.value);
+    } else if (rows) {
+      settings[rows.key] = rows.value;
+    }
 
-      // Check if email notifications are enabled
-      if (settings.email_notifications_enabled !== 'true') {
-        console.log('Email notifications are disabled');
-        return false;
-      }
+    console.log('[EMAIL] Settings loaded:', {
+      email_notifications_enabled: settings.email_notifications_enabled,
+      smtp_host: settings.smtp_host,
+      smtp_port: settings.smtp_port,
+      smtp_secure: settings.smtp_secure,
+      smtp_user: settings.smtp_user ? '***configured***' : 'missing',
+      smtp_password: settings.smtp_password ? '***configured***' : 'missing',
+      smtp_from_email: settings.smtp_from_email,
+      smtp_from_name: settings.smtp_from_name
+    });
 
-      // Check if SMTP is configured
-      if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
-        console.log('SMTP not configured, skipping email send');
-        return false;
-      }
+    // Check if email notifications are enabled
+    if (settings.email_notifications_enabled !== 'true') {
+      console.log('[EMAIL] Email notifications are disabled');
+      return callback && callback(false);
+    }
 
+    // Check if SMTP is configured
+    if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+      console.log('[EMAIL] SMTP not configured, skipping email send');
+      console.log('[EMAIL] Missing:', {
+        smtp_host: !settings.smtp_host,
+        smtp_user: !settings.smtp_user,
+        smtp_password: !settings.smtp_password
+      });
+      return callback && callback(false);
+    }
+
+    try {
       // Create transporter
+      console.log('[EMAIL] Creating transporter with:', {
+        host: settings.smtp_host,
+        port: parseInt(settings.smtp_port) || 587,
+        secure: settings.smtp_secure === 'true'
+      });
+      
       const transporter = nodemailer.createTransport({
         host: settings.smtp_host,
         port: parseInt(settings.smtp_port) || 587,
@@ -198,6 +303,10 @@ const sendEmail = async (to, subject, html) => {
         }
       });
 
+      // Verify transporter connection
+      await transporter.verify();
+      console.log('[EMAIL] Transporter verified successfully');
+
       // Send email
       const info = await transporter.sendMail({
         from: `"${settings.smtp_from_name || 'Ishimo'}" <${settings.smtp_from_email || settings.smtp_user}>`,
@@ -206,13 +315,14 @@ const sendEmail = async (to, subject, html) => {
         html: html
       });
 
-      console.log('Email sent:', info.messageId);
-      return true;
-    });
-  } catch (error) {
-    console.error('Failed to send email:', error.message);
-    return false;
-  }
+      console.log('[EMAIL] Email sent successfully:', info.messageId);
+      return callback && callback(true);
+    } catch (error) {
+      console.error('[EMAIL] Failed to send email:', error.message);
+      console.error('[EMAIL] Full error:', error);
+      return callback && callback(false);
+    }
+  });
 };
 
 // Ensure uploads directory exists
@@ -272,6 +382,41 @@ app.post('/api/register/employer', authLimiter, async (req, res) => {
           }
           db.run('COMMIT');
           logActivity(userId, email, 'register', 'employer', `Employer registered from ${location}`, req.ip);
+          
+          // Send welcome email to employer
+          db.get("SELECT value FROM admin_settings WHERE key = 'welcome_email_enabled'", [], (err, welcomeRow) => {
+            if (!err && welcomeRow && welcomeRow.value === 'true') {
+              const emailHtml = `
+                <h2>Welcome to Ishimo!</h2>
+                <p>Thank you for registering as an employer on the Ishimo platform.</p>
+                <p><strong>Your Account Details:</strong></p>
+                <ul>
+                  <li>Email: ${email}</li>
+                  <li>Location: ${location}</li>
+                </ul>
+                <p>You can now post jobs and connect with skilled workers.</p>
+                <p>Please log in to your dashboard to get started.</p>
+                <p><strong>Registration Time:</strong> ${new Date().toLocaleString()}</p>
+              `;
+              sendEmail(email, 'Welcome to Ishimo - Employer Registration Complete', emailHtml);
+            }
+          });
+
+          // Notify admin of new employer registration
+          db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+            if (!err && adminRow && adminRow.value) {
+              const adminEmailHtml = `
+                <h2>New Employer Registration</h2>
+                <p>A new employer has registered on the Ishimo platform.</p>
+                <p><strong>Employer Email:</strong> ${email}</p>
+                <p><strong>Location:</strong> ${location}</p>
+                <p><strong>Registration Time:</strong> ${new Date().toLocaleString()}</p>
+                <p>Please log in to the admin dashboard for more details.</p>
+              `;
+              sendEmail(adminRow.value, 'New Employer Registration - Ishimo', adminEmailHtml);
+            }
+          });
+
           res.status(201).json({ success: true, userId, role: 'employer' });
         });
       });
@@ -312,6 +457,43 @@ app.post('/api/register/worker', authLimiter, async (req, res) => {
           }
           db.run('COMMIT');
           logActivity(userId, email, 'register', 'worker', `Worker registered from ${location || 'unknown'}`, req.ip);
+          
+          // Send welcome email to worker
+          db.get("SELECT value FROM admin_settings WHERE key = 'welcome_email_enabled'", [], (err, welcomeRow) => {
+            if (!err && welcomeRow && welcomeRow.value === 'true') {
+              const emailHtml = `
+                <h2>Welcome to Ishimo!</h2>
+                <p>Thank you for registering as a worker on the Ishimo platform.</p>
+                <p><strong>Your Account Details:</strong></p>
+                <ul>
+                  <li>Name: ${fullName}</li>
+                  <li>Email: ${email}</li>
+                  <li>Location: ${location || 'Not specified'}</li>
+                </ul>
+                <p>Please complete your profile to start receiving job requests from employers.</p>
+                <p>Log in to your dashboard to complete your onboarding process.</p>
+                <p><strong>Registration Time:</strong> ${new Date().toLocaleString()}</p>
+              `;
+              sendEmail(email, 'Welcome to Ishimo - Worker Registration Complete', emailHtml);
+            }
+          });
+
+          // Notify admin of new worker registration
+          db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+            if (!err && adminRow && adminRow.value) {
+              const adminEmailHtml = `
+                <h2>New Worker Registration</h2>
+                <p>A new worker has registered on the Ishimo platform.</p>
+                <p><strong>Worker Name:</strong> ${fullName}</p>
+                <p><strong>Worker Email:</strong> ${email}</p>
+                <p><strong>Location:</strong> ${location || 'Not specified'}</p>
+                <p><strong>Registration Time:</strong> ${new Date().toLocaleString()}</p>
+                <p>Please log in to the admin dashboard for more details.</p>
+              `;
+              sendEmail(adminRow.value, 'New Worker Registration - Ishimo', adminEmailHtml);
+            }
+          });
+
           res.status(201).json({ success: true, userId, role: 'worker' });
         });
       });
@@ -443,11 +625,13 @@ app.get('/api/workers', readLimiter, (req, res) => {
     SELECT 
       w.user_id as id, 
       w.full_name as name, 
+      w.phone,
       w.location,
       w.profile_views,
       wp.skills, 
       wp.experience, 
       w.status,
+      w.availability,
       wp.passport_photo_path as image
     FROM workers w
     JOIN worker_profiles wp ON w.user_id = wp.worker_id
@@ -465,6 +649,7 @@ app.get('/api/workers', readLimiter, (req, res) => {
       return {
         id: row.id,
         name: row.name,
+        phone: row.phone || '',
         role: 'Verified Professional',
         exp: row.experience + ' yrs',
         rating: 0, // Will be calculated below
@@ -472,6 +657,8 @@ app.get('/api/workers', readLimiter, (req, res) => {
         skills: row.skills ? row.skills.split(',').map(s => s.trim()) : [],
         verified: true,
         profile_views: row.profile_views || 0,
+        status: row.status || 'unknown',
+        availability: row.availability || 'unknown',
         image: filename ? `http://localhost:3000/uploads/${filename}` : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
       };
     });
@@ -512,12 +699,45 @@ app.post('/api/jobs/request', writeLimiter, (req, res) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (row) return res.status(400).json({ error: 'Request already sent' });
 
-    db.run('INSERT INTO job_requests (employer_id, worker_id) VALUES (?, ?)', [employerId, workerId], function(err) {
-      if (err) return res.status(500).json({ error: 'Failed to send request' });
-      // Notify worker of new job request
-      createNotification(workerId, 'job_request', 'An employer has sent you a job request. Check your dashboard to accept or decline.');
-      logActivity(employerId, null, 'job_request', 'job', `Employer requested worker ${workerId}`, req.ip);
-      res.status(201).json({ success: true, message: 'Request sent successfully' });
+    // Get employer and worker details for email notification
+    db.get(`
+      SELECT 
+        e.user_id as employer_id,
+        u.email as employer_email,
+        e.location as employer_location,
+        w.full_name as worker_name
+      FROM employers e
+      JOIN users u ON e.user_id = u.id
+      JOIN workers w ON w.user_id = ?
+      WHERE e.user_id = ?
+    `, [workerId, employerId], (err, details) => {
+      if (err) return res.status(500).json({ error: 'Database error' });
+
+      db.run('INSERT INTO job_requests (employer_id, worker_id) VALUES (?, ?)', [employerId, workerId], function(err) {
+        if (err) return res.status(500).json({ error: 'Failed to send request' });
+        
+        // Notify worker of new job request
+        createNotification(workerId, 'job_request', 'An employer has sent you a job request. Check your dashboard to accept or decline.');
+        logActivity(employerId, null, 'job_request', 'job', `Employer requested worker ${workerId}`, req.ip);
+
+        // Send email notification to admin
+        db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+          if (!err && adminRow && adminRow.value) {
+            const emailHtml = `
+              <h2>New Worker Request</h2>
+              <p>An employer has requested a worker on the Ishimo platform.</p>
+              <p><strong>Employer Email:</strong> ${details?.employer_email || 'N/A'}</p>
+              <p><strong>Employer Location:</strong> ${details?.employer_location || 'N/A'}</p>
+              <p><strong>Worker Name:</strong> ${details?.worker_name || 'N/A'}</p>
+              <p><strong>Request Time:</strong> ${new Date().toLocaleString()}</p>
+              <p>Please log in to the admin dashboard for more details.</p>
+            `;
+            sendEmail(adminRow.value, 'New Worker Request - Ishimo', emailHtml);
+          }
+        });
+
+        res.status(201).json({ success: true, message: 'Request sent successfully' });
+      });
     });
   });
 });
@@ -584,10 +804,43 @@ app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
 
     db.run('UPDATE job_requests SET status = ? WHERE id = ?', [status, jobId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update status' });
+      
       // Notify employer of worker response
       const action = status === 'accepted' ? 'accepted' : 'declined';
       createNotification(reqRow.employer_id, 'request_response', `A worker has ${action} your job request.`);
       logActivity(workerId, null, 'request_response', 'job_request', `Worker ${action} job request ${jobId}`, req.ip);
+
+      // Send email notification to admin when worker is hired (accepted)
+      if (status === 'accepted') {
+        db.get(`
+          SELECT 
+            u.email as employer_email,
+            e.location as employer_location,
+            w.full_name as worker_name
+          FROM employers e
+          JOIN users u ON e.user_id = u.id
+          JOIN workers w ON w.user_id = ?
+          WHERE e.user_id = ?
+        `, [workerId, reqRow.employer_id], (err, details) => {
+          if (!err && details) {
+            db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+              if (!err && adminRow && adminRow.value) {
+                const emailHtml = `
+                  <h2>Worker Hired</h2>
+                  <p>A worker has accepted a job request on the Ishimo platform.</p>
+                  <p><strong>Employer Email:</strong> ${details.employer_email || 'N/A'}</p>
+                  <p><strong>Employer Location:</strong> ${details.employer_location || 'N/A'}</p>
+                  <p><strong>Worker Name:</strong> ${details.worker_name || 'N/A'}</p>
+                  <p><strong>Hire Time:</strong> ${new Date().toLocaleString()}</p>
+                  <p>Please log in to the admin dashboard for more details.</p>
+                `;
+                sendEmail(adminRow.value, 'Worker Hired - Ishimo', emailHtml);
+              }
+            });
+          }
+        });
+      }
+
       res.json({ success: true, message: 'Status updated' });
     });
   });
@@ -1173,14 +1426,72 @@ app.delete('/api/admin/users/:id', adminLimiter, adminAuth, (req, res) => {
   });
 });
 
+// Test Email Endpoint
+app.post('/api/admin/test-email', adminLimiter, adminAuth, (req, res) => {
+  const { to } = req.body;
+  if (!to || !isValidEmail(to)) return res.status(400).json({ error: 'Valid email is required' });
+
+  const emailHtml = `
+    <h2>Test Email from Ishimo</h2>
+    <p>This is a test email to verify your SMTP configuration is working correctly.</p>
+    <p><strong>Test Time:</strong> ${new Date().toLocaleString()}</p>
+    <p>If you received this email, your email settings are configured properly!</p>
+  `;
+
+  sendEmail(to, 'Test Email - Ishimo', emailHtml, (success) => {
+    if (success) {
+      res.json({ success: true, message: 'Test email sent successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to send test email. Check server logs for details.' });
+    }
+  });
+});
+
 // A4b. Update User Status
 app.put('/api/admin/users/:id/status', adminLimiter, adminAuth, (req, res) => {
   const { status } = req.body;
   const allowed = ['active', 'suspended', 'blocked'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  db.run('UPDATE users SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Failed to update user status' });
-    res.json({ success: true });
+  
+  // Get user email before updating status
+  db.get('SELECT email, role FROM users WHERE id = ?', [req.params.id], (err, user) => {
+    if (err) return res.status(500).json({ error: 'Failed to fetch user' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    db.run('UPDATE users SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
+      if (err) return res.status(500).json({ error: 'Failed to update user status' });
+      
+      // Send email notification to user when blocked
+      if (status === 'blocked' && user.email) {
+        const emailHtml = `
+          <h2>Account Blocked</h2>
+          <p>Your account on the Ishimo platform has been blocked by an administrator.</p>
+          <p><strong>Reason:</strong> Violation of platform policies</p>
+          <p><strong>Blocked Time:</strong> ${new Date().toLocaleString()}</p>
+          <p>If you believe this is an error, please contact the administrator.</p>
+        `;
+        sendEmail(user.email, 'Your Account Has Been Blocked - Ishimo', emailHtml);
+      }
+
+      // Notify admin when user is blocked
+      if (status === 'blocked') {
+        db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+          if (!err && adminRow && adminRow.value) {
+            const adminEmailHtml = `
+              <h2>User Blocked</h2>
+              <p>A user has been blocked on the Ishimo platform.</p>
+              <p><strong>User Email:</strong> ${user.email}</p>
+              <p><strong>User Role:</strong> ${user.role}</p>
+              <p><strong>Blocked Time:</strong> ${new Date().toLocaleString()}</p>
+              <p>Please log in to the admin dashboard for more details.</p>
+            `;
+            sendEmail(adminRow.value, 'User Blocked - Ishimo', adminEmailHtml);
+          }
+        });
+      }
+
+      res.json({ success: true });
+    });
   });
 });
 
@@ -1203,11 +1514,53 @@ app.get('/api/admin/workers', adminLimiter, adminAuth, (req, res) => {
 // A6. Update Worker Status
 app.put('/api/admin/workers/:id/status', adminLimiter, adminAuth, (req, res) => {
   const { status } = req.body;
-  const allowed = ['pending', 'completed', 'suspended'];
+  const allowed = ['available', 'unavailable', 'hired', 'fired', 'pending', 'completed', 'suspended'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  db.run('UPDATE workers SET status = ? WHERE user_id = ?', [status, req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Failed to update' });
-    res.json({ success: true });
+  
+  // Get worker email and name before updating status
+  db.get(`
+    SELECT u.email, u.role, w.full_name 
+    FROM users u 
+    JOIN workers w ON u.id = w.user_id 
+    WHERE w.user_id = ?
+  `, [req.params.id], (err, worker) => {
+    if (err) return res.status(500).json({ error: 'Failed to fetch worker' });
+    if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+    db.run('UPDATE workers SET status = ? WHERE user_id = ?', [status, req.params.id], function(err) {
+      if (err) return res.status(500).json({ error: 'Failed to update' });
+      
+      // Send email notification to worker when suspended
+      if (status === 'suspended' && worker.email) {
+        const emailHtml = `
+          <h2>Worker Account Suspended</h2>
+          <p>Your worker account on the Ishimo platform has been suspended by an administrator.</p>
+          <p><strong>Reason:</strong> Violation of platform policies</p>
+          <p><strong>Suspended Time:</strong> ${new Date().toLocaleString()}</p>
+          <p>If you believe this is an error, please contact the administrator.</p>
+        `;
+        sendEmail(worker.email, 'Your Worker Account Has Been Suspended - Ishimo', emailHtml);
+      }
+
+      // Notify admin when worker is suspended
+      if (status === 'suspended') {
+        db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+          if (!err && adminRow && adminRow.value) {
+            const adminEmailHtml = `
+              <h2>Worker Suspended</h2>
+              <p>A worker has been suspended on the Ishimo platform.</p>
+              <p><strong>Worker Name:</strong> ${worker.full_name}</p>
+              <p><strong>Worker Email:</strong> ${worker.email}</p>
+              <p><strong>Suspended Time:</strong> ${new Date().toLocaleString()}</p>
+              <p>Please log in to the admin dashboard for more details.</p>
+            `;
+            sendEmail(adminRow.value, 'Worker Suspended - Ishimo', adminEmailHtml);
+          }
+        });
+      }
+
+      res.json({ success: true });
+    });
   });
 });
 
