@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ishimo-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/database.sqlite:/app/database.sqlite
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - ishimo-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ishimo-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - ishimo-network
+
+networks:
+  ishimo-network:
+    driver: bridge
