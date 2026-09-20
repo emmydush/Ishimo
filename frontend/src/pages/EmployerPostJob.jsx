@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { ArrowLeft, Briefcase, MapPin, DollarSign, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 export default function EmployerPostJob() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function EmployerPostJob() {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3000/api/jobs', {
+      const res = await fetch('${API_BASE_URL}/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

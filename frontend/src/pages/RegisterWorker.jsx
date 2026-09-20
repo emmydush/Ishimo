@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { UserCheck } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const RegisterWorker = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const RegisterWorker = () => {
     if (cleaned.password.length < 8) return showToast('Password must be at least 8 characters.', 'error');
     if (!cleaned.phone)    return showToast('Phone number is required.', 'error');
     try {
-      const response = await fetch('http://localhost:3000/api/register/worker', {
+      const response = await fetch('${API_BASE_URL}/api/register/worker', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

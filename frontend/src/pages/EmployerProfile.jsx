@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, MapPin } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const EmployerProfile = () => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ const EmployerProfile = () => {
       const userId = localStorage.getItem('userId');
       if (!userId) return navigate('/');
       try {
-        const res = await fetch(`http://localhost:3000/api/employer/${userId}/profile`);
+        const res = await fetch(`${API_BASE_URL}/api/employer/${userId}/profile`);
         if (res.ok) {
           const data = await res.json();
           setProfile({ phone: data.phone || '', location: data.location || '' });
@@ -40,7 +41,7 @@ const EmployerProfile = () => {
     if (!cleaned.phone)    return showToast('Phone number is required.', 'error');
     if (!cleaned.location) return showToast('Location is required.', 'error');
     try {
-      const res = await fetch(`http://localhost:3000/api/employer/${userId}/profile`, {
+      const res = await fetch(`${API_BASE_URL}/api/employer/${userId}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cleaned)

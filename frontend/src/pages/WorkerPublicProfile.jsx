@@ -7,6 +7,7 @@ import {
   ShieldCheck, ChevronLeft, FileText, CreditCard, Send, X
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const WorkerPublicProfile = () => {
   const { id } = useParams();
@@ -23,7 +24,7 @@ const WorkerPublicProfile = () => {
   useEffect(() => {
     const fetchWorker = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/worker/${id}/full-profile`);
+        const res = await fetch(`${API_BASE_URL}/api/worker/${id}/full-profile`);
         if (res.ok) {
           const data = await res.json();
           setWorker(data);
@@ -41,7 +42,7 @@ const WorkerPublicProfile = () => {
     // Fetch employer's applications for this worker
     const employerId = localStorage.getItem('userId');
     if (employerId) {
-      fetch(`http://localhost:3000/api/employer/${employerId}/applications`)
+      fetch(`${API_BASE_URL}/api/employer/${employerId}/applications`)
         .then(res => res.json())
         .then(data => {
           const workerApps = data.filter(app => app.worker_id === parseInt(id));
@@ -56,7 +57,7 @@ const WorkerPublicProfile = () => {
     if (!employerId) return showToast('You must be logged in as an employer.', 'error');
     setRequesting(true);
     try {
-      const res = await fetch('http://localhost:3000/api/jobs/request', {
+      const res = await fetch('${API_BASE_URL}/api/jobs/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employerId, workerId: id })
@@ -78,7 +79,7 @@ const WorkerPublicProfile = () => {
   const handleUpdateApplicationStatus = async (applicationId, status) => {
     setUpdatingStatus(applicationId);
     try {
-      const res = await fetch(`http://localhost:3000/api/applications/${applicationId}/status`, {
+      const res = await fetch(`${API_BASE_URL}/api/applications/${applicationId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -88,7 +89,7 @@ const WorkerPublicProfile = () => {
         showToast(`Application ${status} successfully!`, 'success');
         // Refresh applications
         const employerId = localStorage.getItem('userId');
-        const resApps = await fetch(`http://localhost:3000/api/employer/${employerId}/applications`);
+        const resApps = await fetch(`${API_BASE_URL}/api/employer/${employerId}/applications`);
         const dataApps = await resApps.json();
         const workerApps = dataApps.filter(app => app.worker_id === parseInt(id));
         setApplications(workerApps);

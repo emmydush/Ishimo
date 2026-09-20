@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/reset-password', {
+      const response = await fetch('${API_BASE_URL}/api/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword: formData.newPassword }),

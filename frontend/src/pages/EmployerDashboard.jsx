@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { API_BASE_URL } from '../config/api';
 
 const EmployerDashboard = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ const EmployerDashboard = () => {
   useEffect(() => {
     const fetchWorkers = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/workers');
+        const response = await fetch('${API_BASE_URL}/api/workers');
         const data = await response.json();
         setWorkers(data);
       } catch (err) {
@@ -51,11 +52,11 @@ const EmployerDashboard = () => {
       const employerId = localStorage.getItem('userId');
       if (!employerId) return;
       try {
-        const resJobs = await fetch(`http://localhost:3000/api/employer/${employerId}/jobs`);
+        const resJobs = await fetch(`${API_BASE_URL}/api/employer/${employerId}/jobs`);
         const dataJobs = await resJobs.json();
         setMyJobs(dataJobs);
 
-        const resApps = await fetch(`http://localhost:3000/api/employer/${employerId}/applications`);
+        const resApps = await fetch(`${API_BASE_URL}/api/employer/${employerId}/applications`);
         const dataApps = await resApps.json();
         setJobApplications(dataApps);
       } catch (err) {
@@ -72,7 +73,7 @@ const EmployerDashboard = () => {
     if (!employerId) return showToast('You must be logged in as an employer.', 'error');
 
     try {
-      const response = await fetch('http://localhost:3000/api/jobs/request', {
+      const response = await fetch('${API_BASE_URL}/api/jobs/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employerId, workerId })
@@ -90,7 +91,7 @@ const EmployerDashboard = () => {
 
   const handleUpdateApplicationStatus = async (applicationId, status) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/applications/${applicationId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/${applicationId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -100,7 +101,7 @@ const EmployerDashboard = () => {
         showToast(`Application ${status} successfully!`, 'success');
         // Refresh applications
         const employerId = localStorage.getItem('userId');
-        const resApps = await fetch(`http://localhost:3000/api/employer/${employerId}/applications`);
+        const resApps = await fetch(`${API_BASE_URL}/api/employer/${employerId}/applications`);
         const dataApps = await resApps.json();
         setJobApplications(dataApps);
       } else {
@@ -121,7 +122,7 @@ const EmployerDashboard = () => {
     if (!employerId) return showToast('You must be logged in', 'error');
 
     try {
-      const response = await fetch(`http://localhost:3000/api/worker/${ratingWorker.worker_id}/rating`, {
+      const response = await fetch(`${API_BASE_URL}/api/worker/${ratingWorker.worker_id}/rating`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,7 +139,7 @@ const EmployerDashboard = () => {
         setRatingComment('');
         setRatingWorker(null);
         // Refresh workers to update ratings
-        const resWorkers = await fetch('http://localhost:3000/api/workers');
+        const resWorkers = await fetch('${API_BASE_URL}/api/workers');
         const dataWorkers = await resWorkers.json();
         setWorkers(dataWorkers);
       } else {

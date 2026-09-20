@@ -5,6 +5,7 @@ import { Briefcase, Clock, Star, TrendingUp, CheckCircle, User } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { API_BASE_URL } from '../config/api';
 
 const WorkerDashboard = () => {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const WorkerDashboard = () => {
     if (!userId) return navigate('/');
 
     try {
-      const response = await fetch(`http://localhost:3000/api/worker/${userId}/dashboard`);
+      const response = await fetch(`${API_BASE_URL}/api/worker/${userId}/dashboard`);
       const result = await response.json();
       if (response.ok) {
         setData(result);
@@ -29,7 +30,7 @@ const WorkerDashboard = () => {
         showToast(result.error || 'Failed to load dashboard data', 'error');
       }
       
-      const appRes = await fetch(`http://localhost:3000/api/worker/${userId}/applications`);
+      const appRes = await fetch(`${API_BASE_URL}/api/worker/${userId}/applications`);
       if (appRes.ok) {
         const appData = await appRes.json();
         setApplications(appData);
@@ -48,7 +49,7 @@ const WorkerDashboard = () => {
   const updateJobStatus = async (jobId, status) => {
     const workerId = localStorage.getItem('userId');
     try {
-      const response = await fetch(`http://localhost:3000/api/jobs/${jobId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, workerId })

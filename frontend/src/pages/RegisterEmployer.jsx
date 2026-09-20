@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const RegisterEmployer = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const RegisterEmployer = () => {
     if (!cleaned.phone) return showToast('Phone number is required.', 'error');
     if (!cleaned.location) return showToast('Location is required.', 'error');
     try {
-      const response = await fetch('http://localhost:3000/api/register/employer', {
+      const response = await fetch('${API_BASE_URL}/api/register/employer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

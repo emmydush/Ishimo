@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/forgot-password', {
+      const response = await fetch('${API_BASE_URL}/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

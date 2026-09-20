@@ -8,6 +8,7 @@ import {
   Globe, Clock, Key, Zap, Settings as SettingsIcon
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ const AdminDashboard = () => {
   const fetchData = async (tab) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/${tab === 'overview' ? 'stats' : tab}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/${tab === 'overview' ? 'stats' : tab}`, {
         headers: { 'x-admin-token': adminToken }
       });
       if (res.status === 403 || res.status === 401) {
@@ -110,7 +111,7 @@ const AdminDashboard = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/admin/settings', {
+      const res = await fetch('${API_BASE_URL}/api/admin/settings', {
         headers: { 'x-admin-token': adminToken }
       });
       if (res.ok) {
@@ -126,7 +127,7 @@ const AdminDashboard = () => {
 
   const handleUpdateSetting = async (key, value) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/settings/${key}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings/${key}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -161,7 +162,7 @@ const AdminDashboard = () => {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/${type}s/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/${type}s/${id}`, {
         method: 'DELETE',
         headers: { 'x-admin-token': adminToken }
       });
@@ -178,7 +179,7 @@ const AdminDashboard = () => {
 
   const handleStatusUpdate = async (type, id, status) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/${type}s/${id}/status`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/${type}s/${id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +200,7 @@ const AdminDashboard = () => {
 
   const handleAvailabilityUpdate = async (id, availability) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/workers/${id}/availability`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/workers/${id}/availability`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -225,7 +226,7 @@ const AdminDashboard = () => {
       return showToast('Password must be at least 8 characters', 'error');
     }
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/users/${userId}/password`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -250,7 +251,7 @@ const AdminDashboard = () => {
       return showToast('Password must be at least 8 characters', 'error');
     }
     try {
-      const res = await fetch('http://localhost:3000/api/admin/settings/password', {
+      const res = await fetch('${API_BASE_URL}/api/admin/settings/password', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,54 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: ishimo-postgres
+    plan: free
+    databaseName: ishimo
+    user: postgres
+    region: oregon
+
+  # Backend API
+  - type: web
+    name: ishimo-backend
+    plan: free
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: ishimo-postgres
+          property: host
+      - key: DB_PORT
+        value: 5432
+      - key: DB_NAME
+        value: ishimo
+      - key: DB_USER
+        fromService:
+          type: pserv
+          name: ishimo-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: ishimo-postgres
+          property: password
+    region: oregon
+
+  # Frontend
+  - type: web
+    name: ishimo-frontend
+    plan: free
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: ishimo-backend
+          property: url
+    region: oregon

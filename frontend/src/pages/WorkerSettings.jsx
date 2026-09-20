@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import { motion } from 'framer-motion';
 import { Settings, Shield, Bell } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const WorkerSettings = () => {
   const { showToast } = useToast();
@@ -20,7 +21,7 @@ const WorkerSettings = () => {
     }
     const userId = localStorage.getItem('userId');
     try {
-      const response = await fetch(`http://localhost:3000/api/worker/${userId}/settings`, {
+      const response = await fetch(`${API_BASE_URL}/api/worker/${userId}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword: current, newPassword: newPwd })

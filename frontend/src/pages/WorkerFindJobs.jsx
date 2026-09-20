@@ -4,6 +4,7 @@ import { Search, MapPin, DollarSign, Briefcase, X, Phone, Mail, Calendar, Clock,
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 export default function WorkerFindJobs() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export default function WorkerFindJobs() {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/jobs');
+        const response = await fetch('${API_BASE_URL}/api/jobs');
         const data = await response.json();
         setJobs(data);
       } catch (err) {
@@ -44,7 +45,7 @@ export default function WorkerFindJobs() {
 
     setApplying(jobId);
     try {
-      const response = await fetch(`http://localhost:3000/api/jobs/${jobId}/apply`, {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workerId })

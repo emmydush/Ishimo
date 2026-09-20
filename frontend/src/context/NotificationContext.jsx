@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const NotificationContext = createContext(null);
 
@@ -20,7 +21,7 @@ export const NotificationProvider = ({ children }) => {
     const id = localStorage.getItem('userId');
     if (!id) return;
     try {
-      const res = await fetch(`http://localhost:3000/api/notifications/${id}`);
+      const res = await fetch(`${API_BASE_URL}/api/notifications/${id}`);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -45,7 +46,7 @@ export const NotificationProvider = ({ children }) => {
 
   const markRead = useCallback(async (id) => {
     try {
-      await fetch(`http://localhost:3000/api/notifications/${id}/read`, { method: 'PUT' });
+      await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, { method: 'PUT' });
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, is_read: 1 } : n))
       );
@@ -58,7 +59,7 @@ export const NotificationProvider = ({ children }) => {
     const id = localStorage.getItem('userId');
     if (!id) return;
     try {
-      await fetch(`http://localhost:3000/api/notifications/${id}/read-all`, { method: 'PUT' });
+      await fetch(`${API_BASE_URL}/api/notifications/${id}/read-all`, { method: 'PUT' });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
     } catch {
       // ignore

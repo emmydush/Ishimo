@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, Briefcase, CreditCard, Upload } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL } from '../config/api';
 
 const WorkerProfile = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ const WorkerProfile = () => {
       if (!userId) return navigate('/');
 
       try {
-        const response = await fetch(`http://localhost:3000/api/worker/${userId}/profile`);
+        const response = await fetch(`${API_BASE_URL}/api/worker/${userId}/profile`);
         if (response.ok) {
           const data = await response.json();
           setProfile({
@@ -80,7 +81,7 @@ const WorkerProfile = () => {
     if (passportPhotoFile) formData.append('passportPhoto', passportPhotoFile);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/worker/${userId}/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/worker/${userId}/profile`, {
         method: 'PUT',
         body: formData
       });
