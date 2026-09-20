@@ -16,6 +16,7 @@ Make sure your repository includes:
 - All the code changes
 - The `render.yaml` file (created for Render deployment)
 - Updated API configuration
+- Root Dockerfile (for Docker-based deployment)
 
 ### 2. Deploy to Render
 
@@ -27,7 +28,48 @@ Make sure your repository includes:
 4. **Render will automatically detect** the `render.yaml` file
 5. **Click "Apply"** to start the deployment
 
-#### Option B: Manual Setup
+**Important**: If you get a Dockerfile error, make sure you select "Blueprint" deployment, not "Docker" deployment.
+
+#### Option B: Manual Docker Deployment
+
+If you prefer Docker deployment or Blueprint is not working:
+
+1. **Create PostgreSQL Database:**
+   - Go to Render Dashboard → New → PostgreSQL
+   - Name: `ishimo-postgres`
+   - Database: `ishimo`
+   - User: `postgres`
+   - Select Free tier
+   - Click "Create Database"
+
+2. **Create Backend Service (Docker):**
+   - Go to Render Dashboard → New → Web Service
+   - Connect your GitHub repository
+   - Name: `ishimo-backend`
+   - Environment: Docker
+   - Docker Context: `./backend`
+   - Dockerfile Path: `./backend/Dockerfile`
+   - Add Environment Variables:
+     - `NODE_ENV`: `production`
+     - `DB_HOST`: (from PostgreSQL service)
+     - `DB_PORT`: `5432`
+     - `DB_NAME`: `ishimo`
+     - `DB_USER`: (from PostgreSQL service)
+     - `DB_PASSWORD`: (from PostgreSQL service)
+   - Click "Create Web Service"
+
+3. **Create Frontend Service (Docker):**
+   - Go to Render Dashboard → New → Web Service
+   - Connect your GitHub repository
+   - Name: `ishimo-frontend`
+   - Environment: Docker
+   - Docker Context: `./frontend`
+   - Dockerfile Path: `./frontend/Dockerfile`
+   - Add Environment Variable:
+     - `VITE_API_URL`: (your backend service URL)
+   - Click "Create Web Service"
+
+#### Option C: Manual Setup (Native Services)
 
 1. **Create PostgreSQL Database:**
    - Go to Render Dashboard → New → PostgreSQL
