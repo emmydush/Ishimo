@@ -58,16 +58,18 @@ If you prefer Docker deployment or Blueprint is not working:
      - `DB_PASSWORD`: (from PostgreSQL service)
    - Click "Create Web Service"
 
-3. **Create Frontend Service (Docker):**
+3. **Create Frontend Service (Static Site - Recommended):**
    - Go to Render Dashboard → New → Web Service
    - Connect your GitHub repository
    - Name: `ishimo-frontend`
-   - Environment: Docker
-   - Docker Context: `./frontend`
-   - Dockerfile Path: `./frontend/Dockerfile`
+   - Environment: Static Site
+   - Build Command: `cd frontend && npm install && npm run build`
+   - Publish Directory: `./frontend/dist`
    - Add Environment Variable:
      - `VITE_API_URL`: (your backend service URL)
    - Click "Create Web Service"
+
+**Note**: Static Site deployment is recommended for the frontend as it's more cost-effective and simpler than Docker for React applications. The nginx configuration has been updated to work with static site deployment.
 
 #### Option C: Manual Setup (Native Services)
 
