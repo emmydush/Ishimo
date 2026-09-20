@@ -81,50 +81,14 @@ const adminLimiter = makeLimit(
 
 // Migrations: add columns / tables for existing databases
 setTimeout(() => {
-  db.run(`ALTER TABLE workers ADD COLUMN location TEXT DEFAULT ''`, (err) => {
-    if (err && !err.message.includes('duplicate column')) {
-      console.error('Migration error (location):', err.message);
-    }
-  });
+  // PostgreSQL-specific column additions are handled in database.js
+  // These migrations are kept for backward compatibility but will be no-ops in PostgreSQL
 
-  db.run(`ALTER TABLE workers ADD COLUMN availability TEXT DEFAULT 'available'`, (err) => {
-    if (err && !err.message.includes('duplicate column')) {
-      console.error('Migration error (availability):', err.message);
-    }
-  });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      message TEXT NOT NULL,
-      is_read INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `, (err) => {
-    if (err) console.error('Migration error (notifications):', err.message);
-  });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS admin_settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    )
-  `, (err) => {
-    if (err) console.error('Migration error (admin_settings):', err.message);
-    else {
-      bcrypt.hash('admin123', 10, (err, hash) => {
-        if (!err) {
-          db.run(`INSERT OR IGNORE INTO admin_settings (key, value) VALUES ('password_hash', ?)`, [hash]);
-        }
-      });
-    }
-  });
+  // These table creations are now handled in database.js
+  // Keeping migrations for backward compatibility with existing data
 
   // Add admin_notification_email setting if not exists
-  db.run(`INSERT OR IGNORE INTO admin_settings (key, value) VALUES ('admin_notification_email', '')`, (err) => {
+  db.run(`INSERT INTO admin_settings (key, value) VALUES ('admin_notification_email', '') ON CONFLICT (key) DO NOTHING`, (err) => {
     if (err) console.error('Migration error (admin_notification_email):', err.message);
   });
 
@@ -199,7 +163,7 @@ setTimeout(() => {
   };
 
   Object.entries(defaultSettings).forEach(([key, value]) => {
-    db.run(`INSERT OR IGNORE INTO admin_settings (key, value) VALUES (?, ?)`, [key, value], (err) => {
+    db.run(`INSERT INTO admin_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING`, [key, value], (err) => {
       if (err) console.error(`Migration error (${key}):`, err.message);
     });
   });
@@ -349,6 +313,15 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Ishimo API is running.',
     app: 'Open the frontend at http://localhost:5173',
+  });
+});
+
+app.get('/api/test', (req, res) => {
+  db.all('SELECT COUNT(*) as count FROM workers', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ worker_count: rows[0].count });
   });
 });
 
@@ -597,11 +570,12 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     db.run(`
-      INSERT INTO worker_profiles (worker_id, skills, experience, national_id, id_photo_path, passport_photo_path, additional_photo_path, recommendation)
+      INSERT OR REPLACE INTO worker_profiles (worker_id, skills, experience, national_id, id_photo_path, passport_photo_path, additional_photo_path, recommendation)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [userId, skills, experience, nationalId, idPhotoPath, passportPhotoPath, additionalPhotoPath, recommendation], function(err) {
       if (err) {
         db.run('ROLLBACK');
+        console.error('Error saving worker profile:', err);
         return res.status(500).json({ error: 'Failed to save profile details' });
       }
       
@@ -609,6 +583,7 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
       db.run('UPDATE workers SET status = ? WHERE user_id = ?', ['completed', userId], function(err) {
         if (err) {
           db.run('ROLLBACK');
+          console.error('Error updating worker status:', err);
           return res.status(500).json({ error: 'Failed to update worker status' });
         }
         db.run('COMMIT');
@@ -620,7 +595,9 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
 });
 
 // 4. Get Available Workers
-app.get('/api/workers', readLimiter, (req, res) => {
+app.get('/api/workers', (req, res) => {
+  console.log('GET /api/workers called');
+  
   const query = `
     SELECT 
       w.user_id as id, 
@@ -634,14 +611,16 @@ app.get('/api/workers', readLimiter, (req, res) => {
       w.availability,
       wp.passport_photo_path as image
     FROM workers w
-    JOIN worker_profiles wp ON w.user_id = wp.worker_id
-    WHERE w.status IN ('completed', 'available', 'hired', 'unavailable')
+    LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
   `;
   
   db.all(query, [], (err, rows) => {
     if (err) {
+      console.error('Error fetching workers:', err);
       return res.status(500).json({ error: 'Failed to fetch workers' });
     }
+    
+    console.log('Raw workers from DB:', rows.length);
     
     // Format the data for the frontend
     const workers = rows.map(row => {
@@ -651,8 +630,8 @@ app.get('/api/workers', readLimiter, (req, res) => {
         name: row.name,
         phone: row.phone || '',
         role: 'Verified Professional',
-        exp: row.experience + ' yrs',
-        rating: 0, // Will be calculated below
+        exp: row.experience ? row.experience + ' yrs' : '0 yrs',
+        rating: 0,
         location: row.location || 'Not specified',
         skills: row.skills ? row.skills.split(',').map(s => s.trim()) : [],
         verified: true,
@@ -663,27 +642,8 @@ app.get('/api/workers', readLimiter, (req, res) => {
       };
     });
     
-    // Calculate ratings for each worker
-    const workersWithRatings = workers.map(worker => {
-      return new Promise((resolve) => {
-        db.get(
-          'SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = ?',
-          [worker.id],
-          (err, ratingRow) => {
-            if (err || !ratingRow || ratingRow.rating_count === 0) {
-              worker.rating = 0;
-            } else {
-              worker.rating = Math.round(ratingRow.avg_rating * 10) / 10; // Round to 1 decimal
-            }
-            resolve(worker);
-          }
-        );
-      });
-    });
-    
-    Promise.all(workersWithRatings).then(results => {
-      res.json(results);
-    });
+    console.log('Formatted workers:', workers.length);
+    res.json(workers);
   });
 });
 

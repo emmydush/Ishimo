@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const Login = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({ email: '', password: '' });
 
   const handleSubmit = async (e) => {
@@ -20,7 +22,7 @@ const Login = () => {
 
       const data = await response.json();
       if (response.ok) {
-        showToast('Signed in successfully!', 'success');
+        showToast(t('signed_in_success'), 'success');
 
         if (data.role === 'admin') {
           localStorage.setItem('adminToken', data.token);
@@ -38,10 +40,10 @@ const Login = () => {
           }
         }
       } else {
-        showToast(data.error || 'Login failed', 'error');
+        showToast(data.error || t('login_failed'), 'error');
       }
     } catch {
-      showToast('Cannot connect to the server. Ensure backend is running.', 'error');
+      showToast(t('server_error'), 'error');
     }
   };
 
@@ -60,13 +62,13 @@ const Login = () => {
           <div className="flex-center" style={{ width: '56px', height: '56px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '16px', margin: '0 auto 16px', color: 'var(--accent-gold)' }}>
             <LogIn size={28} />
           </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Welcome Back</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Sign in to your Ishimo account.</p>
+          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>{t('welcome_back')}</h2>
+          <p style={{ color: 'var(--text-muted)' }}>{t('sign_in_account')}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label className="input-label">Email Address or Username</label>
+            <label className="input-label">{t('email_username')}</label>
             <input
               type="text"
               className="input-field"
@@ -77,11 +79,11 @@ const Login = () => {
             />
           </div>
           <div className="input-group" style={{ marginBottom: '12px' }}>
-            <label className="input-label">Password</label>
+            <label className="input-label">{t('password')}</label>
             <input
               type="password"
               className="input-field"
-              placeholder="Enter your password"
+              placeholder={t('enter_password')}
               required
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -93,7 +95,7 @@ const Login = () => {
               style={{ fontSize: '0.85rem', color: 'var(--accent-gold)', cursor: 'pointer' }}
               onClick={() => navigate('/forgot-password')}
             >
-              Forgot password?
+              {t('forgot_password')}
             </span>
           </div>
 
@@ -104,16 +106,16 @@ const Login = () => {
             style={{ width: '100%', fontSize: '1.1rem' }}
             type="submit"
           >
-            Sign In
+            {t('sign_in')}
           </motion.button>
 
           <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-            Don't have an account?{' '}
+            {t('no_account')}{' '}
             <span
               style={{ color: 'var(--accent-gold)', cursor: 'pointer' }}
               onClick={() => navigate('/')}
             >
-              Go back home
+              {t('go_back_home')}
             </span>
           </div>
         </form>

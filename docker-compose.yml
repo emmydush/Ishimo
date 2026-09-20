@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ishimo-postgres
+    environment:
+      - POSTGRES_DB=ishimo
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - ishimo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -8,9 +28,16 @@ services:
       - "3000:3000"
     volumes:
       - ./backend/uploads:/app/uploads
-      - ./backend/database.sqlite:/app/database.sqlite
     environment:
       - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=ishimo
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ishimo-network
@@ -27,6 +54,9 @@ services:
     restart: unless-stopped
     networks:
       - ishimo-network
+
+volumes:
+  postgres_data:
 
 networks:
   ishimo-network:

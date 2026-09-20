@@ -17,7 +17,7 @@ const AdminDashboard = () => {
   const [data, setData] = useState(null);
   const [settings, setSettings] = useState({
     // Platform Settings
-    site_name: 'EliteConnect',
+    site_name: 'Ishimo',
     site_description: 'Connecting elite workers with employers',
     maintenance_mode: 'false',
     maintenance_message: 'Site is under maintenance. Please check back later.',
@@ -32,7 +32,7 @@ const AdminDashboard = () => {
     email_notifications_enabled: 'true',
     welcome_email_enabled: 'true',
     job_alert_email_enabled: 'true',
-    admin_notification_email: 'admin@eliteconnect.com',
+    admin_notification_email: 'admin@ishimo.com',
 
     // SMTP Configuration
     smtp_host: '',
@@ -40,8 +40,8 @@ const AdminDashboard = () => {
     smtp_secure: 'false',
     smtp_user: '',
     smtp_password: '',
-    smtp_from_email: 'noreply@eliteconnect.com',
-    smtp_from_name: 'EliteConnect',
+    smtp_from_email: 'noreply@ishimo.com',
+    smtp_from_name: 'Ishimo',
 
     // Content Moderation Settings
     auto_moderate_jobs: 'true',
@@ -400,7 +400,7 @@ const AdminDashboard = () => {
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                       <select
-                        value={w.status || 'available'}
+                        value={w.status || 'pending'}
                         onChange={(e) => handleStatusUpdate('worker', w.id, e.target.value)}
                         style={{
                           background: 'var(--bg-elevated)',
@@ -412,10 +412,11 @@ const AdminDashboard = () => {
                           fontSize: '0.85rem'
                         }}
                       >
-                        <option value="available">Available</option>
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
                         <option value="hired">Hired</option>
                         <option value="fired">Fired</option>
-                        <option value="unavailable">Unavailable</option>
+                        <option value="suspended">Suspended</option>
                       </select>
                       <button onClick={() => handleResetUserPassword(w.id)} style={{ color: 'var(--text-main)', padding: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', border: '1px solid var(--border-color)' }} title="Reset Password">
                         Reset Password
@@ -855,7 +856,7 @@ const AdminDashboard = () => {
                       <input
                         type="text"
                         className="input-field"
-                        placeholder="EliteConnect"
+                        placeholder="Ishimo"
                         value={settings.smtp_from_name}
                         onChange={(e) => handleUpdateSetting('smtp_from_name', e.target.value)}
                       />

@@ -4,11 +4,13 @@ import { Search, Filter, MapPin, Star, ShieldCheck, CheckCircle, X, Phone, Messa
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const EmployerDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -169,7 +171,7 @@ const EmployerDashboard = () => {
             className="btn-premium"
             onClick={() => navigate('/employer-post-job')}
           >
-            Post a Job
+            {t('post_job')}
           </motion.button>
         </header>
 
@@ -218,7 +220,7 @@ const EmployerDashboard = () => {
               fontSize: '1rem'
             }}
           >
-            Find Professionals
+            {t('find_professionals')}
           </button>
           <button 
             onClick={() => setActiveTab('jobs')}
@@ -233,7 +235,7 @@ const EmployerDashboard = () => {
               fontSize: '1rem'
             }}
           >
-            My Job Postings
+            {t('my_job_postings')}
           </button>
         </div>
 
@@ -245,7 +247,7 @@ const EmployerDashboard = () => {
                 <input 
                   type="text" 
                   className="input-field" 
-                  placeholder="Search roles or names..." 
+                  placeholder={t('search_roles')}
                   style={{ paddingLeft: '44px', width: '100%' }}
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
@@ -253,14 +255,14 @@ const EmployerDashboard = () => {
               </div>
               <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
                 <Filter size={18} />
-                Filter
+                {t('filter')}
               </button>
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading top-tier professionals...</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('loading')}</div>
             ) : filteredWorkers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No professionals found matching your search.</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('no_workers')}</div>
             ) : (
               <div className="grid-cards">
                 {filteredWorkers.map((worker, idx) => (
@@ -272,12 +274,32 @@ const EmployerDashboard = () => {
                     className="worker-card"
                   >
                     <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
-                      <img 
-                        src={worker.image} 
-                        alt={worker.name} 
-                        style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', cursor: 'pointer' }}
-                        onClick={() => setSelectedImage(worker.image)}
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={worker.image} 
+                          alt={worker.name} 
+                          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', cursor: 'pointer' }}
+                          onClick={() => setSelectedImage(worker.image)}
+                        />
+                        {worker.availability === 'available' && (
+                          <motion.div
+                            initial={{ scale: 0.8, opacity: 0.8 }}
+                            animate={{ scale: [1, 1.2, 1], opacity: [1, 0.8, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            style={{
+                              position: 'absolute',
+                              bottom: '4px',
+                              right: '4px',
+                              width: '16px',
+                              height: '16px',
+                              backgroundColor: '#10b981',
+                              borderRadius: '50%',
+                              border: '2px solid white',
+                              boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)'
+                            }}
+                          />
+                        )}
+                      </div>
                       <div>
                         <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {worker.name}
@@ -411,7 +433,7 @@ const EmployerDashboard = () => {
                         style={{ flex: 1, padding: '11px' }}
                         onClick={() => navigate(`/worker/${worker.id}`)}
                       >
-                        View Profile
+                        {t('view_profile')}
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -420,7 +442,7 @@ const EmployerDashboard = () => {
                         style={{ flex: 1, padding: '11px' }}
                         onClick={() => handleRequestWorker(worker.id)}
                       >
-                        Request
+                        {t('request')}
                       </motion.button>
                     </div>
                   </motion.div>

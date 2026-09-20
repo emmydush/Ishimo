@@ -4,29 +4,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Search, User, LogOut, Settings, Briefcase, PlusCircle, Menu, X, Bell } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useLanguage } from '../context/LanguageContext';
 import NotificationPanel from './NotificationPanel';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Sidebar = ({ role }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast, confirmAction } = useToast();
+  const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const { unreadCount } = useNotifications();
 
   const employerLinks = [
-    { name: 'Dashboard', path: '/employer-dashboard', icon: <Home size={20} /> },
-    { name: 'Find Workers', path: '/employer-dashboard', icon: <Search size={20} /> },
-    { name: 'Post a Job', path: '/employer-post-job', icon: <PlusCircle size={20} /> },
-    { name: 'My Profile', path: '/employer-profile', icon: <User size={20} /> },
-    { name: 'Settings', path: '/employer-settings', icon: <Settings size={20} /> },
+    { name: 'dashboard', path: '/employer-dashboard', icon: <Home size={20} /> },
+    { name: 'find_workers', path: '/employer-dashboard', icon: <Search size={20} /> },
+    { name: 'post_job', path: '/employer-post-job', icon: <PlusCircle size={20} /> },
+    { name: 'my_profile', path: '/employer-profile', icon: <User size={20} /> },
+    { name: 'settings', path: '/employer-settings', icon: <Settings size={20} /> },
   ];
 
   const workerLinks = [
-    { name: 'Dashboard', path: '/worker-dashboard', icon: <Home size={20} /> },
-    { name: 'Find Jobs', path: '/worker-find-jobs', icon: <Search size={20} /> },
-    { name: 'My Profile', path: '/worker-profile', icon: <User size={20} /> },
-    { name: 'Settings', path: '/worker-settings', icon: <Settings size={20} /> },
+    { name: 'dashboard', path: '/worker-dashboard', icon: <Home size={20} /> },
+    { name: 'find_jobs', path: '/worker-find-jobs', icon: <Search size={20} /> },
+    { name: 'my_profile', path: '/worker-profile', icon: <User size={20} /> },
+    { name: 'settings', path: '/worker-settings', icon: <Settings size={20} /> },
   ];
 
   const links = role === 'employer' ? employerLinks : workerLinks;
@@ -74,11 +77,12 @@ const Sidebar = ({ role }) => {
           </motion.button>
 
           <div style={{ fontWeight: 700, fontSize: '1.15rem' }}>
-            Elite<span className="text-gradient-gold">Connect</span>
+            Ishimo
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <LanguageSwitcher />
           <span style={{
             fontSize: '0.7rem',
             fontWeight: 600,
@@ -189,7 +193,7 @@ const Sidebar = ({ role }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-                    Elite<span className="text-gradient-gold">Connect</span>
+                    Ishimo
                   </h2>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     {role} Menu
@@ -240,7 +244,7 @@ const Sidebar = ({ role }) => {
                       }}
                     >
                       {React.cloneElement(link.icon, { size: 20, color: isActive ? activeAccent : 'var(--text-muted)' })}
-                      {link.name}
+                      {t(link.name)}
                     </motion.button>
                   );
                 })}
@@ -253,7 +257,7 @@ const Sidebar = ({ role }) => {
                     {role === 'employer' ? <Briefcase size={18} color="var(--accent-gold)" /> : <User size={18} color="var(--accent-emerald)" />}
                   </div>
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role === 'employer' ? 'Employer Account' : 'Worker Account'}</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role === 'employer' ? t('employer') + ' Account' : t('worker') + ' Account'}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {localStorage.getItem('userId') || '—'}</div>
                   </div>
                 </div>
@@ -279,7 +283,7 @@ const Sidebar = ({ role }) => {
       <div className="sidebar">
         <div style={{ marginBottom: '40px', padding: '0 12px' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-            Elite<span className="text-gradient-gold">Connect</span>
+            Ishimo
           </h2>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>
             {role} Portal
@@ -310,7 +314,7 @@ const Sidebar = ({ role }) => {
                 }}
               >
                 {link.icon}
-                {link.name}
+                {t(link.name)}
               </motion.button>
             );
           })}
@@ -368,7 +372,7 @@ const Sidebar = ({ role }) => {
               }}
             >
               {React.cloneElement(link.icon, { size: 18, color: isActive ? activeAccent : 'var(--text-muted)' })}
-              <span>{link.name}</span>
+              <span>{t(link.name)}</span>
             </button>
           );
         })}

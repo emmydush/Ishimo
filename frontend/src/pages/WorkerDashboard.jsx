@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { motion } from 'framer-motion';
-import { Briefcase, Clock, Star, TrendingUp, CheckCircle, User, Bell } from 'lucide-react';
+import { Briefcase, Clock, Star, TrendingUp, CheckCircle, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { useNotifications } from '../context/NotificationContext';
-import NotificationPanel from '../components/NotificationPanel';
+import { useLanguage } from '../context/LanguageContext';
 
 const WorkerDashboard = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { unreadCount } = useNotifications();
+  const { t } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [panelOpen, setPanelOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'applications'
   const [applications, setApplications] = useState([]);
@@ -111,10 +109,10 @@ const WorkerDashboard = () => {
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                <h1 style={{ fontSize: '2rem', lineHeight: 1.2 }}>Welcome back, {workerName}</h1>
+                <h1 style={{ fontSize: '2rem', lineHeight: 1.2 }}>{t('welcome_back')}, {workerName}</h1>
                 {isVerified && (
                   <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-emerald)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle size={14} /> Verified Professional
+                    <CheckCircle size={14} /> {t('verified')} Professional
                   </div>
                 )}
               </div>
@@ -123,67 +121,16 @@ const WorkerDashboard = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            {/* Notification Bell */}
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={() => setPanelOpen((o) => !o)}
-              style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '10px',
-                background: panelOpen ? 'var(--bg-elevated)' : 'var(--bg-elevated)',
-                border: `1px solid ${panelOpen ? 'var(--accent-emerald)' : 'var(--border-color)'}`,
-                borderRadius: '10px',
-                color: 'var(--text-main)',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s'
-              }}
-              aria-label="Notifications"
-            >
-              <Bell size={20} color="var(--accent-emerald)" />
-              {unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  minWidth: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  background: '#ef4444',
-                  color: '#fff',
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 1,
-                  padding: '0 3px',
-                  boxShadow: '0 0 0 2px var(--bg-card)'
-                }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </motion.button>
-
-            {/* Notification Dropdown Panel */}
-            <NotificationPanel
-              isOpen={panelOpen}
-              onClose={() => setPanelOpen(false)}
-              accentColor="var(--accent-emerald)"
-            />
-
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="btn-outline"
               onClick={() => navigate('/worker-find-jobs')}
             >
-              Find Jobs
+              {t('find_jobs_btn')}
             </motion.button>
             <button className="btn-premium" style={{ background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #047857 100%)', color: '#fff' }}>
-              Update Availability
+              {t('update_availability')}
             </button>
           </div>
         </header>
@@ -191,10 +138,10 @@ const WorkerDashboard = () => {
         {/* Stats Grid */}
         <div className="responsive-grid-4" style={{ marginBottom: '40px' }}>
           {[
-            { label: 'Active Jobs', value: jobs.filter(j => j.status === 'accepted').length, icon: <Briefcase size={24} color="var(--accent-emerald)" /> },
-            { label: 'Hours Logged', value: '164', icon: <Clock size={24} color="var(--accent-gold)" /> },
-            { label: 'Average Rating', value: '4.9', icon: <Star size={24} color="#f59e0b" /> },
-            { label: 'Profile Views', value: '128', icon: <TrendingUp size={24} color="#3b82f6" /> },
+            { label: t('active_jobs'), value: jobs.filter(j => j.status === 'accepted').length, icon: <Briefcase size={24} color="var(--accent-emerald)" /> },
+            { label: t('hours_logged'), value: '164', icon: <Clock size={24} color="var(--accent-gold)" /> },
+            { label: t('average_rating'), value: '4.9', icon: <Star size={24} color="#f59e0b" /> },
+            { label: t('profile_views'), value: '128', icon: <TrendingUp size={24} color="#3b82f6" /> },
           ].map((stat, idx) => (
             <motion.div 
               key={idx}
@@ -230,7 +177,7 @@ const WorkerDashboard = () => {
               fontSize: '1rem'
             }}
           >
-            Direct Requests
+            {t('direct_requests')}
           </button>
           <button 
             onClick={() => setActiveTab('applications')}
@@ -245,15 +192,15 @@ const WorkerDashboard = () => {
               fontSize: '1rem'
             }}
           >
-            My Applications
+            {t('my_applications')}
           </button>
         </div>
 
         {activeTab === 'requests' && (
           <div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>Recent Job Requests</h2>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>{t('direct_requests')}</h2>
             {jobs.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>No direct job requests yet.</p>
+              <p style={{ color: 'var(--text-muted)' }}>{t('no_requests')}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {jobs.map((job, idx) => (
@@ -297,9 +244,9 @@ const WorkerDashboard = () => {
 
         {activeTab === 'applications' && (
           <div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>My Job Applications</h2>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>{t('my_applications')}</h2>
             {applications.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>You haven't applied to any jobs yet.</p>
+              <p style={{ color: 'var(--text-muted)' }}>{t('no_applications')}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {applications.map((app, idx) => (

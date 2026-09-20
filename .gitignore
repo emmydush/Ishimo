@@ -22,6 +22,11 @@ frontend/dist
 backend/database.sqlite
 backend/database.sqlite-*
 
+# Environment variables
+backend/.env
+.env
+.env.local
+
 # Uploads (keep directory structure but ignore files)
 backend/uploads/*
 !backend/uploads/.gitkeep

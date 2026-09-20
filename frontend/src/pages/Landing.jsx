@@ -2,15 +2,19 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Users, Star, LogIn, Check, Crown, Briefcase, Mail, Phone, MapPin } from 'lucide-react';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useLanguage } from '../context/LanguageContext';
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <div className="flex-center" style={{ minHeight: '100vh', flexDirection: 'column', position: 'relative', overflow: 'hidden', padding: '80px 16px 40px' }}>
 
       {/* Top nav */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', zIndex: 2 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', zIndex: 2 }}>
+        <LanguageSwitcher />
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -19,7 +23,7 @@ const Landing = () => {
           onClick={() => navigate('/login')}
         >
           <LogIn size={18} />
-          Log In
+          {t('login')}
         </motion.button>
       </div>
 
@@ -34,12 +38,11 @@ const Landing = () => {
         style={{ zIndex: 1, textAlign: 'center', maxWidth: '800px', width: '100%', marginBottom: '48px' }}
       >
         <h1 className="responsive-hero-title">
-          The World's Elite <br />
-          <span className="text-gradient-gold">Household Network</span>
+          {t('landing_title')} <br />
+          <span className="text-gradient-gold">{t('household_network')}</span>
         </h1>
         <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', marginBottom: '40px', lineHeight: 1.6 }}>
-          Connect with top-tier nannies, cooks, cleaners, and security professionals. 
-          Experience a new standard of trust and excellence in your home.
+          {t('connect_description')}
         </p>
 
         <div className="responsive-button-group">
@@ -50,7 +53,7 @@ const Landing = () => {
             style={{ fontSize: '1.05rem', padding: '16px 36px' }}
             onClick={() => navigate('/register-employer')}
           >
-            I am an Employer
+            {t('employer_button')}
           </motion.button>
           
           <motion.button 
@@ -60,7 +63,7 @@ const Landing = () => {
             style={{ fontSize: '1.05rem', padding: '16px 36px' }}
             onClick={() => navigate('/register-worker')}
           >
-            I am a Worker
+            {t('worker_button')}
           </motion.button>
         </div>
       </motion.div>
@@ -274,13 +277,13 @@ const Landing = () => {
           <div className="responsive-grid-3" style={{ gap: '32px', marginBottom: '40px' }}>
             {/* Company Info */}
             <div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-gold)' }}>EliteConnect</h3>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-gold)' }}>Ishimo</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '20px' }}>
                 The world's premier household professional network. Connecting elite workers with discerning employers since 2024.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  <Mail size={16} /> contact@eliteconnect.com
+                  <Mail size={16} /> contact@ishimo.com
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                   <Phone size={16} /> +1 (555) 123-4567
@@ -343,7 +346,7 @@ const Landing = () => {
           {/* Bottom Bar */}
           <div style={{ paddingTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              © 2024 EliteConnect. All rights reserved.
+              © 2024 Ishimo. All rights reserved.
             </p>
             <div style={{ display: 'flex', gap: '24px' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Privacy</span>
