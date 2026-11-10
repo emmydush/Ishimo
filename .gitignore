@@ -23,6 +23,7 @@ server/database.sqlite
 server/database.sqlite-*
 *.sqlite
 *.sqlite-*
+*.sqlite.bak*
 
 # Environment variables
 server/.env

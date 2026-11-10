@@ -9,6 +9,7 @@ npm-debug.log
 database.sqlite
 *.sqlite
 *.sqlite-*
+*.sqlite.bak*
 _tmp*
 uploads/*
 !uploads/.gitkeep

@@ -211,6 +211,10 @@ const all = (db, sql, params = []) =>
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 async function applySchema(db) {
+  // Wait instead of failing when another connection (the running API server)
+  // is writing, so `npm run db:init` is safe on a live container.
+  await run(db, 'PRAGMA busy_timeout = 5000');
+
   for (const sql of TABLES) {
     await run(db, sql);
   }
@@ -225,15 +229,19 @@ async function applySchema(db) {
 }
 
 async function seedDefaults(db) {
+  // Seed first, so the rows a migration wants to update already exist.
+  for (const [key, value] of Object.entries(DEFAULT_ADMIN_SETTINGS)) {
+    await run(db, 'INSERT INTO admin_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING', [key, value]);
+  }
+
   // One-time migration: legacy admin_email -> admin_notification_email
   const legacy = await get(db, "SELECT value FROM admin_settings WHERE key = 'admin_email'");
   if (legacy && legacy.value) {
-    await run(db, "UPDATE admin_settings SET value = ? WHERE key = 'admin_notification_email'", [legacy.value]);
+    const current = await get(db, "SELECT value FROM admin_settings WHERE key = 'admin_notification_email'");
+    if (!current || !current.value) {
+      await run(db, "UPDATE admin_settings SET value = ? WHERE key = 'admin_notification_email'", [legacy.value]);
+    }
     await run(db, "DELETE FROM admin_settings WHERE key = 'admin_email'");
-  }
-
-  for (const [key, value] of Object.entries(DEFAULT_ADMIN_SETTINGS)) {
-    await run(db, 'INSERT INTO admin_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING', [key, value]);
   }
 }
 

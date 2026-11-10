@@ -1,196 +1,203 @@
 # Ishimo Deployment Guide
 
-This guide explains how to deploy the Ishimo application using Docker and Docker Compose.
-
-## Project Structure
+Production deployment uses Docker Compose: nginx serves the React SPA and
+reverse-proxies `/api` and `/uploads` to the Node API, which stores data in
+SQLite on a named volume.
 
 ```
 ishimo/
-├── client/
-├── server/
+├── client/            React + Vite (built to static files, served by nginx)
+├── server/            Express + SQLite
 └── docker-compose.yml
 ```
 
 ## Prerequisites
 
-- Docker installed on your system
-- Docker Compose installed
-- Git (for cloning the repository)
+- Docker Engine + Docker Compose v2
+- Git
 
-## Quick Start
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/emmydush/Ishimo.git
-   cd Ishimo
-   ```
-
-2. **Build and start the containers:**
-   ```bash
-   docker compose up --build -d
-   ```
-
-3. **Access the application:**
-   - Frontend: http://localhost
-   - Backend API: http://localhost:3000
-
-## Docker Compose Services
-
-### Server Service
-- **Port:** 3000
-- **Technology:** Node.js 18 Alpine
-- **Volumes:**
-  - `./server/uploads:/app/uploads` - User uploaded files
-  - `sqlite_data:/app/data` - SQLite database volume
-- **Restart Policy:** unless-stopped
-
-### Client Service
-- **Port:** 80
-- **Technology:** Nginx Alpine
-- **Depends on:** server
-- **Restart Policy:** unless-stopped
-
-## Development
-
-### Running Server Locally (without Docker)
+## Deploy (VPS)
 
 ```bash
-cd server
-npm install
-node server.js
+git clone https://github.com/emmydush/Ishimo.git
+cd Ishimo
+
+docker compose up -d --build
+docker compose ps                      # both containers must report (healthy)
+curl -s http://localhost/api/health    # {"status":"ok","uptime":N}
 ```
 
-### Running Client Locally (without Docker)
+The site is then served on **http://<server-ip>/** (port 80). The API is not
+published publicly; it is reachable only through nginx or from the host loopback
+(`127.0.0.1:3000`).
+
+### Create the admin login
+
+The admin password is stored as a bcrypt hash in the database, not in code:
 
 ```bash
-cd client
-npm install
-npm run dev
+docker compose exec server npm run admin:create
 ```
 
-The Vite dev server is configured to proxy API requests to the backend at `http://localhost:3000`.
-
-## Production Deployment
-
-### Environment Variables
-
-The server uses environment variables for configuration. You can add them to the docker-compose.yml file:
-
-```yaml
-environment:
-  - NODE_ENV=production
-  - PORT=3000
-```
-
-### Building for Production
+You are prompted twice for a password (input hidden). To script it:
 
 ```bash
-# Build images
-docker-compose build
-
-# Start services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
+docker compose exec server npm run admin:create -- --password "YourStrongPass1!" --force
 ```
 
-### Database Persistence
+The username is `admin` (override with `ADMIN_USERNAME`). Regular users and
+employers create their own accounts through the registration pages.
 
-The SQLite database is persisted using Docker volumes. The database file is stored at:
-- Host volume: `sqlite_data`
-- Container: `/app/data/database.sqlite`
+### Redeploy after pulling changes
 
-### File Uploads
+`docker compose up -d` reuses existing images, so a new commit is **not** picked
+up unless you rebuild:
 
-User uploaded files are persisted using Docker volumes:
-- Host: `./server/uploads/`
-- Container: `/app/uploads/`
+```bash
+git pull
+docker compose down --remove-orphans
+docker compose build --no-cache
+docker compose up -d
+```
+
+Then clear the cached PWA in the browser: DevTools → **Application** →
+**Service Workers** → *Unregister*, and hard-reload (`Ctrl+Shift+R`). Otherwise
+visitors may keep running the previous JavaScript bundle.
+
+## Configuration
+
+Environment variables (see `server/.env.example`; all are optional):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | API port |
+| `SQLITE_PATH` | `/app/data/database.sqlite` in Docker | Database file |
+| `PUBLIC_BASE_URL` | empty | Absolute origin for `/uploads` links. Leave empty for same-origin |
+| `ADMIN_USERNAME` | `admin` | Admin login name |
+| `ADMIN_TOKEN` | `admin-secret-token-ishimo` | Token for `/api/admin/*`. **Change in production** |
+| `VITE_API_URL` | empty | Build-time API origin. Leave empty when nginx proxies the API |
+
+To override, create a `.env` next to `docker-compose.yml`:
+
+```dotenv
+ADMIN_TOKEN=some-long-random-value
+```
+
+If you change `VITE_API_URL`, it must be set **before** `docker compose build`
+because it is compiled into the bundle.
+
+## Database
+
+The schema (12 tables), column migrations and default admin settings live in
+`server/schema.js`. The API applies them automatically at startup, so a fresh
+volume works with no manual step.
+
+### Manual init / upgrade
+
+```bash
+docker compose exec server npm run db:init     # create missing tables, add columns, seed defaults
+```
+
+- Idempotent: safe to run repeatedly, existing rows are preserved
+- Copies the database to `database.sqlite.bak-<timestamp>` inside the volume
+  before migrating
+- Prints a per-table row count summary
+
+### Reset (destroys data)
+
+```bash
+docker compose exec server npm run db:reset    # drops all tables and recreates them
+```
+
+### Backup / restore
+
+```bash
+# backup
+docker compose exec server sh -c 'cat /app/data/database.sqlite' > ishimo-backup.sqlite
+
+# restore (stop the stack first)
+docker compose down
+docker compose run --rm -v $PWD:/backup server sh -c 'cat /backup/ishimo-backup.sqlite > /app/data/database.sqlite'
+docker compose up -d
+```
+
+## Volumes
+
+| Volume | Container path | Contents |
+|---|---|---|
+| `sqlite_data` | `/app/data` | SQLite database (+ automatic `.bak-*` copies) |
+| `uploads_data` | `/app/uploads` | Worker photos, ID scans, passports |
+
+Both survive `docker compose down`. Only `docker compose down -v` deletes them.
+
+## Architecture notes
+
+- **Client**: nginx serves `/usr/share/nginx/html`; `/api` and `/uploads` are
+  proxied to the `server` container at request time (Docker DNS `127.0.0.11`),
+  so the image also starts on hosts where no `server` container exists.
+- **Client caching**: hashed `/assets/*` are immutable for a year, `index.html`
+  is `no-cache`, `sw.js` is `no-store`.
+- **Uploads**: nginx accepts request bodies up to 15 MB.
+- **Server**: runs as the unprivileged `node` user (uid 1000) and handles
+  `SIGTERM` by closing the HTTP server and the SQLite connection before exiting.
+- **Health**: `/api/health` on the server, `/` on the client. `client` waits for
+  `server` to be healthy before starting.
+
+## Adding HTTPS
+
+The containers speak plain HTTP on port 80. For TLS, put a reverse proxy in
+front (Caddy, Traefik, or nginx with certbot), or mount certificates into the
+client nginx container and add a `listen 443 ssl;` server block. When the public
+origin differs from the API origin, set `PUBLIC_BASE_URL` and rebuild the client
+with `VITE_API_URL`.
 
 ## Troubleshooting
 
-### Server not starting
-```bash
-# Check server logs
-docker-compose logs server
-
-# Restart server
-docker-compose restart server
-```
-
-### Client not loading
-```bash
-# Check client logs
-docker-compose logs client
-
-# Check if server is running
-docker-compose ps
-```
-
-### Database issues
-```bash
-# Backup database
-cp server/database.sqlite server/database.sqlite.backup
-
-# Reset database (WARNING: This deletes all data)
-docker-compose down
-rm server/database.sqlite
-docker-compose up -d
-```
-
-### Port conflicts
-If port 80 or 3000 is already in use, modify the ports in docker-compose.yml:
-
-```yaml
-services:
-  server:
-    ports:
-      - "3001:3000"  # Use port 3001 instead
-  client:
-    ports:
-      - "8080:80"    # Use port 8080 instead
-```
-
-## Security Considerations
-
-1. **Change default admin credentials** in `server/server.js`:
-   - `ADMIN_USERNAME`
-   - `ADMIN_PASSWORD`
-   - `ADMIN_TOKEN`
-
-2. **Use environment variables** for sensitive data in production
-
-3. **Enable HTTPS** by adding SSL certificates to Nginx configuration
-
-4. **Regular backups** of the SQLite database
-
-5. **Rate limiting** is already configured in the server
-
-## Scaling
-
-For horizontal scaling, consider:
-- Using a production-grade database (PostgreSQL, MySQL)
-- Implementing a load balancer
-- Using Docker Swarm or Kubernetes for orchestration
-
-## Monitoring
-
-To monitor container health:
+**Login/registration fails with "Failed to fetch"**
+The bundle is stale or points at the wrong API. Check which origin the running
+image uses:
 
 ```bash
-# Check container status
-docker-compose ps
-
-# View resource usage
-docker stats
-
-# View logs
-docker-compose logs -f
+docker exec ishimo-client grep -c localhost:3000 /usr/share/nginx/html/assets/index-*.js
 ```
 
-## Support
+`0` is correct; `1` or more means the image predates the fix — rebuild
+(`docker compose build --no-cache`). The login/register toasts now print the
+API origin they are calling, which makes this immediate.
 
-For issues or questions, please open an issue on the GitHub repository.
+**502 from nginx / API unreachable**
+
+```bash
+docker compose ps
+docker compose logs --tail=50 server
+curl -s http://127.0.0.1:3000/api/health
+```
+
+**Port 80 or 3000 already in use**
+Old containers from a previous layout can hold the ports:
+
+```bash
+docker compose down --remove-orphans
+docker ps -a
+```
+
+**"Invalid email or password" for admin**
+The stored hash does not match. Reset it:
+
+```bash
+docker compose exec server npm run admin:create -- --force
+```
+
+**Database locked**
+`db:init` sets a 5 s busy timeout, so it can run while the API is up. If you
+still hit lock errors, stop the server container first.
+
+## Production checklist
+
+- [ ] `ADMIN_TOKEN` overridden with a long random value
+- [ ] Admin password created with `npm run admin:create`
+- [ ] `docker compose ps` shows both containers `(healthy)`
+- [ ] `curl -s http://<server>/api/health` returns `{"status":"ok",...}`
+- [ ] HTTPS terminated in front of nginx
+- [ ] Database backup cron in place
+- [ ] `docker compose down -v` never run accidentally

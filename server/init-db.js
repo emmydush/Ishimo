@@ -30,6 +30,9 @@ Ishimo database initializer
 
 Environment:
   SQLITE_PATH   Path to the SQLite file (default: <server>/database.sqlite)
+
+Notes:
+  Existing databases are copied to <file>.bak-<timestamp> before migrating.
 `);
   process.exit(0);
 }
@@ -85,7 +88,20 @@ async function main() {
   console.log('Ishimo database initializer');
   console.log(`  database : ${relPath}`);
   console.log(`  mode     : ${RESET ? 'reset (all data will be deleted)' : 'init / upgrade'}`);
-  console.log(`  file     : ${existsBefore ? 'existing (will be migrated in place)' : 'new (will be created)'}\n`);
+  console.log(`  file     : ${existsBefore ? 'existing (will be migrated in place)' : 'new (will be created)'}`);
+
+  // Migrating an existing database is not reversible — keep a copy first.
+  if (existsBefore && !RESET) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = `${dbPath}.bak-${stamp}`;
+    try {
+      fs.copyFileSync(dbPath, backupPath);
+      console.log(`  backup   : ${path.basename(backupPath)}`);
+    } catch (err) {
+      console.warn(`  backup   : skipped (${err.message})`);
+    }
+  }
+  console.log('');
 
   const db = new sqlite3.Database(dbPath);
   await new Promise((resolve, reject) => {
