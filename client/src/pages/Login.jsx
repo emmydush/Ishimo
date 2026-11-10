@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, networkErrorMessage } from '../config/api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -43,8 +43,8 @@ const Login = () => {
       } else {
         showToast(data.error || t('login_failed'), 'error');
       }
-    } catch {
-      showToast(t('server_error'), 'error');
+    } catch (err) {
+      showToast(networkErrorMessage(err), 'error');
     }
   };
 

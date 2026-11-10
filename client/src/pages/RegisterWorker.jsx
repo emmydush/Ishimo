@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { UserCheck } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, networkErrorMessage } from '../config/api';
 
 const RegisterWorker = () => {
   const navigate = useNavigate();
@@ -48,7 +48,7 @@ const RegisterWorker = () => {
         showToast(data.error || 'Registration failed', 'error');
       }
     } catch (err) {
-      showToast('Network error connecting to server', 'error');
+      showToast(networkErrorMessage(err), 'error');
     }
   };
 
