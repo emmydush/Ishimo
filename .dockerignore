@@ -1,6 +1,15 @@
-client/node_modules
+**/node_modules
 client/dist
-server
 .git
 .gitignore
 *.md
+**/.env
+**/.env.*
+!**/.env.example
+# Never bake local data into an image
+**/*.sqlite
+**/*.sqlite-*
+**/*.sqlite.bak*
+**/_tmp*
+server/uploads/*
+!server/uploads/.gitkeep

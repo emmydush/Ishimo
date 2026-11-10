@@ -1,0 +1,4 @@
+# Keep shell scripts LF-ended: a CRLF shebang breaks /bin/sh inside Linux images.
+*.sh text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf

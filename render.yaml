@@ -1,0 +1,29 @@
+# Render blueprint: one web service running the all-in-one image
+# (React SPA + nginx + Node API + SQLite in a single container).
+services:
+  - type: web
+    name: ishimo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SQLITE_PATH
+        value: /app/data/database.sqlite
+      # Protects /api/admin/* — generated once, change it to your own value.
+      - key: ADMIN_TOKEN
+        generateValue: true
+      # Used only while no admin password hash exists in the database.
+      # Prefer creating one with `node /app/server/create-admin.js` in the Shell.
+      - key: ADMIN_PASSWORD
+        generateValue: true
+
+    # Persistent disk: keeps the SQLite database and uploaded files across
+    # redeploys. Disks need a paid instance type — on the free plan delete this
+    # block (the app still runs, but data is wiped on every redeploy).
+    disk:
+      name: ishimo-data
+      mountPath: /app/data
+      sizeGB: 1

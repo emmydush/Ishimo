@@ -1,8 +1,56 @@
 # Ishimo Deployment Guide
 
-Production deployment uses Docker Compose: nginx serves the React SPA and
-reverse-proxies `/api` and `/uploads` to the Node API, which stores data in
-SQLite on a named volume.
+Two supported shapes, same code:
+
+| Shape | Files | Where |
+|---|---|---|
+| **All-in-one container** — nginx serves the SPA and proxies to the Node API on `127.0.0.1:3000`, SQLite on a disk | root `Dockerfile`, `nginx.single.conf`, `start.sh` | Render, Railway, any single-service Docker host |
+| **Split stack** — separate client and server containers linked by Docker DNS | `docker-compose.yml`, `client/Dockerfile`, `server/Dockerfile`, `client/nginx.conf` | VPS with Docker Compose |
+
+Use the all-in-one image on Render: compose's embedded DNS (`127.0.0.11`) and the
+`server` hostname do not exist there, so the split nginx config cannot resolve
+its upstream.
+
+## Deploy on Render (single service)
+
+1. **New → Web Service** from this repository, runtime **Docker**.
+2. Settings: **Dockerfile Path** `Dockerfile` (repository root), **Docker Context
+   Directory** `.`, **Health Check Path** `/api/health`.
+3. Environment variables: `ADMIN_TOKEN` (long random value) and, for the first
+   admin login, `ADMIN_PASSWORD`.
+4. **Add a disk** mounted at `/app/data` (1 GB is plenty). It stores both the
+   SQLite database and the uploaded files (`/app/server/uploads` is a symlink to
+   `/app/data/uploads`). Without a disk the app works but data is wiped on every
+   redeploy — disks require a paid instance type.
+5. Deploy, then check `https://<your-app>.onrender.com/api/health` returns
+   `{"status":"ok",...}`.
+
+`render.yaml` contains the same setup if you prefer deploying as a Blueprint.
+Render injects `PORT`; `start.sh` makes nginx listen on it while the API stays on
+`127.0.0.1:3000`, so nothing else needs configuring.
+
+### Admin login on Render
+
+```bash
+# Render Shell (paid plans)
+node /app/server/create-admin.js
+```
+
+On the free plan there is no shell: set a strong `ADMIN_PASSWORD` env var and
+sign in with username `admin`. That fallback only applies while no password hash
+exists in the database.
+
+### Run the all-in-one image locally
+
+```bash
+docker build -t ishimo .
+docker run -p 8080:80 -v ishimo_data:/app/data ishimo
+```
+
+## Split stack (VPS with Docker Compose)
+
+nginx serves the React SPA and reverse-proxies `/api` and `/uploads` to the Node
+API, which stores data in SQLite on a named volume.
 
 ```
 ishimo/
@@ -152,6 +200,12 @@ origin differs from the API origin, set `PUBLIC_BASE_URL` and rebuild the client
 with `VITE_API_URL`.
 
 ## Troubleshooting
+
+**`recv() failed (111: Connection refused) while resolving, resolver: 127.0.0.11:53`**
+You are running the compose nginx config on a host without Docker's embedded DNS
+(Render, or the client image started standalone). There is no `server` container
+to resolve, so `/api` calls fail. Deploy the root all-in-one `Dockerfile`
+instead, which proxies to `127.0.0.1:3000` and needs no DNS.
 
 **Login/registration fails with "Failed to fetch"**
 The bundle is stale or points at the wrong API. Check which origin the running
