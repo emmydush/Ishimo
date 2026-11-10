@@ -1,17 +1,15 @@
-# Frontend-only Dockerfile for static site deployment
-# For full stack deployment, use the separate backend/frontend Dockerfiles
+# Client-only Dockerfile for static site deployment
+# For full stack deployment, use docker-compose.yml
 
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY frontend/package*.json ./
+COPY client/package*.json ./
 RUN npm install
-COPY frontend/ ./
+COPY client/ ./
 RUN npm run build
 
 FROM nginx:alpine
-# Copy frontend build
 COPY --from=builder /app/dist /usr/share/nginx/html
-# Copy nginx config
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

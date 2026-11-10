@@ -51,7 +51,7 @@ const WorkerOnboarding = () => {
       if (additionalPhoto) data.append('additionalPhoto', additionalPhoto);
 
       try {
-        const response = await fetch('${API_BASE_URL}/api/worker/profile', {
+        const response = await fetch(`${API_BASE_URL}/api/worker/profile`, {
           method: 'POST',
           body: data
         });

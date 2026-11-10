@@ -9,27 +9,29 @@ lerna-debug.log*
 
 # Dependencies
 node_modules
-frontend/node_modules
-backend/node_modules
+client/node_modules
+server/node_modules
 
 # Build outputs
 dist
 dist-ssr
-frontend/dist
+client/dist
 *.local
 
 # Database
-backend/database.sqlite
-backend/database.sqlite-*
+server/database.sqlite
+server/database.sqlite-*
+*.sqlite
+*.sqlite-*
 
 # Environment variables
-backend/.env
+server/.env
 .env
 .env.local
 
 # Uploads (keep directory structure but ignore files)
-backend/uploads/*
-!backend/uploads/.gitkeep
+server/uploads/*
+!server/uploads/.gitkeep
 
 # Editor directories and files
 .vscode/*
@@ -41,6 +43,9 @@ backend/uploads/*
 *.njsproj
 *.sln
 *.sw?
+
+# IDE-generated project wiki
+.qoder/
 
 # Docker
 .dockerignore

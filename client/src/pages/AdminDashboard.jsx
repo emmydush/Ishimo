@@ -111,7 +111,7 @@ const AdminDashboard = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('${API_BASE_URL}/api/admin/settings', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         headers: { 'x-admin-token': adminToken }
       });
       if (res.ok) {
@@ -251,7 +251,7 @@ const AdminDashboard = () => {
       return showToast('Password must be at least 8 characters', 'error');
     }
     try {
-      const res = await fetch('${API_BASE_URL}/api/admin/settings/password', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -44,8 +44,14 @@ const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
-const makeLimit = (windowMinutes, max, message) =>
-  rateLimit({
+// Set to true to re-enable request throttling.
+const RATE_LIMITING_ENABLED = false;
+
+const passThrough = (req, res, next) => next();
+
+const makeLimit = (windowMinutes, max, message) => {
+  if (!RATE_LIMITING_ENABLED) return passThrough;
+  return rateLimit({
     windowMs: windowMinutes * 60 * 1000,
     max,
     standardHeaders: true,   // Return RateLimit-* headers
@@ -53,6 +59,7 @@ const makeLimit = (windowMinutes, max, message) =>
     handler: (req, res) =>
       res.status(429).json({ error: message }),
   });
+};
 
 // 1. Auth: login + register — 10 attempts per 15 min per IP
 const authLimiter = makeLimit(
@@ -79,111 +86,8 @@ const adminLimiter = makeLimit(
 );
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Migrations: add columns / tables for existing databases
-setTimeout(() => {
-  // PostgreSQL-specific column additions are handled in database.js
-  // These migrations are kept for backward compatibility but will be no-ops in PostgreSQL
-
-  // These table creations are now handled in database.js
-  // Keeping migrations for backward compatibility with existing data
-
-  // Add admin_notification_email setting if not exists
-  db.run(`INSERT INTO admin_settings (key, value) VALUES ('admin_notification_email', '') ON CONFLICT (key) DO NOTHING`, (err) => {
-    if (err) console.error('Migration error (admin_notification_email):', err.message);
-  });
-
-  // Migrate old admin_email to admin_notification_email if exists
-  db.get("SELECT value FROM admin_settings WHERE key = 'admin_email'", [], (err, row) => {
-    if (!err && row && row.value && row.value !== '') {
-      db.run("UPDATE admin_settings SET value = ? WHERE key = 'admin_notification_email'", [row.value], (err) => {
-        if (err) console.error('Migration error (admin_email migration):', err.message);
-        else {
-          console.log('Migrated admin_email to admin_notification_email');
-          // Remove old admin_email setting after migration
-          db.run(`DELETE FROM admin_settings WHERE key = 'admin_email'`, (err) => {
-            if (err && !err.message.includes('no such table')) {
-              console.error('Migration error (removing admin_email):', err.message);
-            }
-          });
-        }
-      });
-    }
-  });
-
-  // Initialize default admin settings if they don't exist
-  const defaultSettings = {
-    // Platform Settings
-    site_name: 'Ishimo',
-    site_description: 'Connecting workers with employers',
-    maintenance_mode: 'false',
-    maintenance_message: 'Site is under maintenance. Please check back later.',
-
-    // Registration Settings
-    allow_registration: 'true',
-    max_workers_per_employer: '10',
-    require_worker_verification: 'true',
-    require_employer_verification: 'false',
-
-    // Email/Notification Settings
-    email_notifications_enabled: 'true',
-    welcome_email_enabled: 'true',
-    job_alert_email_enabled: 'true',
-
-    // SMTP Configuration
-    smtp_host: '',
-    smtp_port: '587',
-    smtp_secure: 'false',
-    smtp_user: '',
-    smtp_password: '',
-    smtp_from_email: 'noreply@ishimo.com',
-    smtp_from_name: 'Ishimo',
-
-    // Content Moderation Settings
-    auto_moderate_jobs: 'true',
-    require_job_approval: 'false',
-    profanity_filter_enabled: 'true',
-    max_job_description_length: '5000',
-
-    // API/Rate Limit Settings
-    api_rate_limit_enabled: 'true',
-    api_rate_limit_window: '15',
-    api_rate_limit_max_requests: '100',
-
-    // User Management Settings
-    user_session_timeout: '30',
-    password_min_length: '8',
-    password_require_special_char: 'true',
-    account_inactivity_days: '90',
-
-    // Job Posting Settings
-    max_active_jobs_per_employer: '20',
-    job_expiry_days: '30',
-    allow_job_editing: 'true',
-    allow_job_deletion: 'true'
-  };
-
-  Object.entries(defaultSettings).forEach(([key, value]) => {
-    db.run(`INSERT INTO admin_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING`, [key, value], (err) => {
-      if (err) console.error(`Migration error (${key}):`, err.message);
-    });
-  });
-
-  // Activity logs table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS activity_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      user_email TEXT,
-      action TEXT NOT NULL,
-      entity TEXT,
-      detail TEXT,
-      ip TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `, (err) => {
-    if (err) console.error('Migration error (activity_logs):', err.message);
-  });
-}, 500);
+// Schema, column migrations and default admin settings live in schema.js and
+// are applied by database.js when the SQLite connection opens.
 
 // Helper: log a user activity
 const logActivity = (userId, userEmail, action, entity, detail, ip) => {
@@ -609,9 +513,16 @@ app.get('/api/workers', (req, res) => {
       wp.experience, 
       w.status,
       w.availability,
-      wp.passport_photo_path as image
+      wp.passport_photo_path as image,
+      r.avg_rating,
+      r.rating_count
     FROM workers w
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
+    LEFT JOIN (
+      SELECT worker_id, AVG(rating) as avg_rating, COUNT(*) as rating_count
+      FROM worker_ratings
+      GROUP BY worker_id
+    ) r ON r.worker_id = w.user_id
   `;
   
   db.all(query, [], (err, rows) => {
@@ -631,7 +542,8 @@ app.get('/api/workers', (req, res) => {
         phone: row.phone || '',
         role: 'Verified Professional',
         exp: row.experience ? row.experience + ' yrs' : '0 yrs',
-        rating: 0,
+        rating: row.rating_count ? Math.round(row.avg_rating * 10) / 10 : 0,
+        rating_count: row.rating_count || 0,
         location: row.location || 'Not specified',
         skills: row.skills ? row.skills.split(',').map(s => s.trim()) : [],
         verified: true,
@@ -708,7 +620,7 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
   
   // Get worker details
   db.get(`
-    SELECT w.full_name, w.status, wp.passport_photo_path
+    SELECT w.full_name, w.status, w.profile_views, wp.passport_photo_path
     FROM workers w
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
     WHERE w.user_id = ?
@@ -738,11 +650,26 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
     
     db.all(query, [workerId], (err, jobRows) => {
       if (err) return res.status(500).json({ error: 'Failed to fetch job requests' });
-      
-      res.json({
-        worker: workerRow,
-        jobs: jobRows || []
-      });
+
+      // Real rating stats for this worker
+      db.get(
+        'SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = ?',
+        [workerId],
+        (ratingErr, ratingRow) => {
+          if (ratingErr) return res.status(500).json({ error: 'Failed to fetch ratings' });
+
+          workerRow.rating = ratingRow && ratingRow.rating_count
+            ? Math.round(ratingRow.avg_rating * 10) / 10
+            : 0;
+          workerRow.rating_count = (ratingRow && ratingRow.rating_count) || 0;
+          workerRow.profile_views = workerRow.profile_views || 0;
+
+          res.json({
+            worker: workerRow,
+            jobs: jobRows || []
+          });
+        }
+      );
     });
   });
 });

@@ -38,7 +38,7 @@ const EmployerDashboard = () => {
   useEffect(() => {
     const fetchWorkers = async () => {
       try {
-        const response = await fetch('${API_BASE_URL}/api/workers');
+        const response = await fetch(`${API_BASE_URL}/api/workers`);
         const data = await response.json();
         setWorkers(data);
       } catch (err) {
@@ -73,7 +73,7 @@ const EmployerDashboard = () => {
     if (!employerId) return showToast('You must be logged in as an employer.', 'error');
 
     try {
-      const response = await fetch('${API_BASE_URL}/api/jobs/request', {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employerId, workerId })
@@ -139,7 +139,7 @@ const EmployerDashboard = () => {
         setRatingComment('');
         setRatingWorker(null);
         // Refresh workers to update ratings
-        const resWorkers = await fetch('${API_BASE_URL}/api/workers');
+        const resWorkers = await fetch(`${API_BASE_URL}/api/workers`);
         const dataWorkers = await resWorkers.json();
         setWorkers(dataWorkers);
       } else {

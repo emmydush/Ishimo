@@ -1,62 +1,36 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: ishimo-postgres
-    environment:
-      - POSTGRES_DB=ishimo
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    networks:
-      - ishimo-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  backend:
+  server:
     build:
-      context: ./backend
+      context: ./server
       dockerfile: Dockerfile
-    container_name: ishimo-backend
+    container_name: ishimo-server
     ports:
       - "3000:3000"
     volumes:
-      - ./backend/uploads:/app/uploads
+      - ./server/uploads:/app/uploads
+      - sqlite_data:/app/data
     environment:
       - NODE_ENV=production
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=ishimo
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - SQLITE_PATH=/app/data/database.sqlite
     restart: unless-stopped
     networks:
       - ishimo-network
 
-  frontend:
+  client:
     build:
-      context: ./frontend
+      context: ./client
       dockerfile: Dockerfile
-    container_name: ishimo-frontend
+    container_name: ishimo-client
     ports:
       - "80:80"
     depends_on:
-      - backend
+      - server
     restart: unless-stopped
     networks:
       - ishimo-network
 
 volumes:
-  postgres_data:
+  sqlite_data:
 
 networks:
   ishimo-network:

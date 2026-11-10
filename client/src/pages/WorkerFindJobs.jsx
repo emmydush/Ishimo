@@ -19,7 +19,7 @@ export default function WorkerFindJobs() {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const response = await fetch('${API_BASE_URL}/api/jobs');
+        const response = await fetch(`${API_BASE_URL}/api/jobs`);
         const data = await response.json();
         setJobs(data);
       } catch (err) {

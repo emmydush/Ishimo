@@ -28,7 +28,7 @@ const RegisterEmployer = () => {
     if (!cleaned.phone) return showToast('Phone number is required.', 'error');
     if (!cleaned.location) return showToast('Location is required.', 'error');
     try {
-      const response = await fetch('${API_BASE_URL}/api/register/employer', {
+      const response = await fetch(`${API_BASE_URL}/api/register/employer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

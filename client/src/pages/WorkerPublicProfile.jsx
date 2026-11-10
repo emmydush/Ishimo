@@ -57,7 +57,7 @@ const WorkerPublicProfile = () => {
     if (!employerId) return showToast('You must be logged in as an employer.', 'error');
     setRequesting(true);
     try {
-      const res = await fetch('${API_BASE_URL}/api/jobs/request', {
+      const res = await fetch(`${API_BASE_URL}/api/jobs/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employerId, workerId: id })

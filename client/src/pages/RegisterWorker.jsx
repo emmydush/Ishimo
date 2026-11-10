@@ -30,7 +30,7 @@ const RegisterWorker = () => {
     if (cleaned.password.length < 8) return showToast('Password must be at least 8 characters.', 'error');
     if (!cleaned.phone)    return showToast('Phone number is required.', 'error');
     try {
-      const response = await fetch('${API_BASE_URL}/api/register/worker', {
+      const response = await fetch(`${API_BASE_URL}/api/register/worker`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

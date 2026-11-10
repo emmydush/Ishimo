@@ -81,6 +81,9 @@ const WorkerDashboard = () => {
   const isVerified = data?.worker?.status === 'completed';
   const profilePhotoUrl = data?.worker?.passport_photo_url;
   const jobs = data?.jobs || [];
+  const ratingValue = data?.worker?.rating ?? 0;
+  const ratingCount = data?.worker?.rating_count ?? 0;
+  const profileViews = data?.worker?.profile_views ?? 0;
 
   return (
     <div className="app-layout">
@@ -141,8 +144,8 @@ const WorkerDashboard = () => {
           {[
             { label: t('active_jobs'), value: jobs.filter(j => j.status === 'accepted').length, icon: <Briefcase size={24} color="var(--accent-emerald)" /> },
             { label: t('hours_logged'), value: '164', icon: <Clock size={24} color="var(--accent-gold)" /> },
-            { label: t('average_rating'), value: '4.9', icon: <Star size={24} color="#f59e0b" /> },
-            { label: t('profile_views'), value: '128', icon: <TrendingUp size={24} color="#3b82f6" /> },
+            { label: t('average_rating'), value: ratingCount > 0 ? ratingValue : 'No ratings', icon: <Star size={24} color="#f59e0b" /> },
+            { label: t('profile_views'), value: profileViews, icon: <TrendingUp size={24} color="#3b82f6" /> },
           ].map((stat, idx) => (
             <motion.div 
               key={idx}
