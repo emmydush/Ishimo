@@ -1,5 +1,8 @@
 // API Configuration for different environments
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Default is empty on purpose: requests go to the same origin (/api/...), which
+// works in dev (Vite proxy) and in production (nginx proxies to the API).
+// Set VITE_API_URL at build time to point at a separate API host instead.
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 export const API_BASE_URL = API_URL;
 

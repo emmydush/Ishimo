@@ -10,17 +10,27 @@ const nodemailer = require('nodemailer');
 const db = require('./database');
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+// Public base URL used when building absolute media links.
+// Leave it empty to emit same-origin URLs (/uploads/...), which works behind
+// the nginx reverse proxy as well as in local development.
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
 
 // Admin credentials
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin123';
-const ADMIN_TOKEN = 'admin-secret-token-ishimo';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-secret-token-ishimo';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Health probe used by Docker / load balancers
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: Math.round(process.uptime()) });
+});
 
 // ─── Sanitization helper ──────────────────────────────────────────────────────
 // Strips leading/trailing whitespace, collapses internal whitespace,
@@ -550,7 +560,7 @@ app.get('/api/workers', (req, res) => {
         profile_views: row.profile_views || 0,
         status: row.status || 'unknown',
         availability: row.availability || 'unknown',
-        image: filename ? `http://localhost:3000/uploads/${filename}` : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
+        image: filename ? `${PUBLIC_BASE_URL}/uploads/${filename}` : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200'
       };
     });
     
@@ -629,7 +639,7 @@ app.get('/api/worker/:id/dashboard', (req, res) => {
 
     if (workerRow.passport_photo_path) {
       const filename = path.basename(workerRow.passport_photo_path);
-      workerRow.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
+      workerRow.passport_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
     delete workerRow.passport_photo_path;
     
@@ -748,15 +758,15 @@ app.get('/api/worker/:id/profile', (req, res) => {
     
     if (row.id_photo_path) {
       const filename = path.basename(row.id_photo_path);
-      row.id_photo_url = `http://localhost:3000/uploads/${filename}`;
+      row.id_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
     if (row.passport_photo_path) {
       const filename = path.basename(row.passport_photo_path);
-      row.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
+      row.passport_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
     if (row.additional_photo_path) {
       const filename = path.basename(row.additional_photo_path);
-      row.additional_photo_url = `http://localhost:3000/uploads/${filename}`;
+      row.additional_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
 
     res.json(row);
@@ -934,15 +944,15 @@ app.get('/api/worker/:id/full-profile', (req, res) => {
     // Format passport photo for display
     if (row.passport_photo_path) {
       const filename = path.basename(row.passport_photo_path);
-      row.passport_photo_url = `http://localhost:3000/uploads/${filename}`;
+      row.passport_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
     if (row.id_photo_path) {
       const filename = path.basename(row.id_photo_path);
-      row.id_photo_url = `http://localhost:3000/uploads/${filename}`;
+      row.id_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
     if (row.additional_photo_path) {
       const filename = path.basename(row.additional_photo_path);
-      row.additional_photo_url = `http://localhost:3000/uploads/${filename}`;
+      row.additional_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
 
     // Get completed job count (accepted requests)
@@ -1740,6 +1750,21 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 server.on('error', (err) => {
   console.error('Server error:', err);
 });
+
+// Graceful shutdown so `docker stop` does not corrupt the SQLite file
+const shutdown = (signal) => {
+  console.log(`${signal} received, shutting down gracefully...`);
+  server.close(() => {
+    db.close((err) => {
+      if (err) console.error('Error closing database:', err.message);
+      process.exit(err ? 1 : 0);
+    });
+  });
+  // Force exit if connections refuse to drain
+  setTimeout(() => process.exit(1), 10000).unref();
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Prevent the process from exiting
 process.on('uncaughtException', (err) => {

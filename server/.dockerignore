@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+# Never bake local data into the image
+database.sqlite
+*.sqlite
+*.sqlite-*
+_tmp*
+uploads/*
+!uploads/.gitkeep

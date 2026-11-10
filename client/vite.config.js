@@ -132,6 +132,8 @@ export default defineConfig({
     }
   },
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:3000')
+    // Baked in at build time. Empty means "same origin" so the app talks to
+    // whatever host serves it (nginx reverse proxy), with no rebuild needed.
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || '')
   }
 })

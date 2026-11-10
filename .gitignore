@@ -46,6 +46,3 @@ server/uploads/*
 
 # IDE-generated project wiki
 .qoder/
-
-# Docker
-.dockerignore
