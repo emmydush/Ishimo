@@ -1,14 +1,41 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ishimo-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ishimo}
+      POSTGRES_USER: ${POSTGRES_USER:-ishimo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ishimo}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Loopback only, for direct access with psql/pg_dump from the host.
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ishimo} -d ${POSTGRES_DB:-ishimo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ishimo-network
+
   server:
     build:
       context: ./server
       dockerfile: Dockerfile
     image: ishimo-server
     container_name: ishimo-server
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3000
-      SQLITE_PATH: /app/data/database.sqlite
+      # Same values as the postgres service above (defaults shown).
+      DATABASE_URL: postgres://${POSTGRES_USER:-ishimo}:${POSTGRES_PASSWORD:-ishimo}@postgres:5432/${POSTGRES_DB:-ishimo}
       # Set to an absolute origin (e.g. https://api.example.com) if the API is
       # served from a different domain; leave empty for same-origin URLs.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
@@ -17,7 +44,6 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-admin-secret-token-ishimo}
     volumes:
-      - sqlite_data:/app/data
       - uploads_data:/app/uploads
     ports:
       # Loopback only: the public entry point is the client container (port 80).
@@ -69,7 +95,7 @@ services:
       - ishimo-network
 
 volumes:
-  sqlite_data:
+  postgres_data:
   uploads_data:
 
 networks:

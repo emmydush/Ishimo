@@ -6,14 +6,14 @@
 // Usage:
 //   node create-admin.js                      Prompt for a password (hidden input)
 //   node create-admin.js --password Secret123 Interactive-free, e.g. in CI
+//   node create-admin.js --generate           Generate a strong random password
 //   node create-admin.js --force              Allow replacing an existing password
 //   node create-admin.js --help               Show this help
 //
-// The target file can be overridden with the SQLITE_PATH environment variable.
+// Connects via DATABASE_URL (PostgreSQL).
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const pg = require('pg');
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
@@ -30,11 +30,12 @@ Ishimo admin credentials
 
   node create-admin.js                       Prompt for a password (input hidden)
   node create-admin.js --password <value>    Set the password non-interactively
+  node create-admin.js --generate            Generate a strong random password
   node create-admin.js --force               Allow overwriting an existing password
   node create-admin.js --help                Show this help
 
 Environment:
-  SQLITE_PATH     Path to the SQLite file (default: <server>/database.sqlite)
+  DATABASE_URL    postgres://user:password@host:5432/ishimo (required)
   ADMIN_PASSWORD  Password to use when --password is omitted (optional)
 
 Notes:
@@ -105,76 +106,83 @@ function promptHidden(query) {
 
 async function main() {
   const FORCE = hasFlag('--force') || hasFlag('-f');
-  const dbPath = path.resolve(__dirname, process.env.SQLITE_PATH || 'database.sqlite');
+  const GENERATE = hasFlag('--generate') || hasFlag('-g');
+  const connectionString = process.env.DATABASE_URL || '';
 
-  console.log('Ishimo admin credentials');
-  console.log(`  database : ${path.relative(process.cwd(), dbPath) || dbPath}`);
-  console.log(`  username : ${ADMIN_USERNAME}\n`);
-
-  if (!fs.existsSync(dbPath)) {
-    console.log('Database file not found — it will be created and initialized.\n');
+  if (!connectionString) {
+    console.error('DATABASE_URL is not set. Point it at the PostgreSQL database');
+    console.error('(e.g. postgres://user:password@host:5432/ishimo) and retry.');
+    process.exit(1);
   }
 
-  const db = new sqlite3.Database(dbPath);
-  await new Promise((resolve, reject) => {
-    db.on('open', resolve);
-    db.on('error', reject);
-  });
+  console.log('Ishimo admin credentials');
+  console.log('  database : PostgreSQL via DATABASE_URL');
+  console.log(`  username : ${ADMIN_USERNAME}\n`);
+
+  const pool = new pg.Pool({ connectionString, max: 1 });
 
   try {
     // Make sure admin_settings exists (works on a brand-new database)
-    await run(db, 'PRAGMA foreign_keys = ON');
-    await initializeDatabase(db);
+    await initializeDatabase(pool);
 
-    const existing = await get(db, "SELECT value FROM admin_settings WHERE key = 'password_hash'");
+    const existing = await get(pool, "SELECT value FROM admin_settings WHERE \"key\" = 'password_hash'");
 
     if (existing && existing.value && !FORCE) {
       console.error('An admin password already exists.');
       console.error('Re-run with --force to replace it.');
-      db.close();
+      await pool.end();
       process.exit(1);
     }
 
     // Minimum length comes from the platform setting when available
-    const minRow = await get(db, "SELECT value FROM admin_settings WHERE key = 'password_min_length'");
+    const minRow = await get(pool, "SELECT value FROM admin_settings WHERE \"key\" = 'password_min_length'");
     const minLength = Math.max(8, parseInt(minRow && minRow.value, 10) || 8);
 
     let password = readPasswordFlag() || process.env.ADMIN_PASSWORD || null;
+    let generated = false;
+
+    if (!password && GENERATE) {
+      password = crypto.randomBytes(12).toString('base64url'); // ~96 bits of entropy
+      generated = true;
+    }
 
     if (!password) {
       password = await promptHidden('New admin password: ');
       const confirm = await promptHidden('Confirm password: ');
       if (password !== confirm) {
         console.error('\nError: passwords do not match.');
-        db.close();
+        await pool.end();
         process.exit(1);
       }
     }
 
     if (!password || password.length < minLength) {
       console.error(`\nError: password must be at least ${minLength} characters.`);
-      db.close();
+      await pool.end();
       process.exit(1);
     }
 
     const hash = await bcrypt.hash(password, 10);
 
     await run(
-      db,
-      `INSERT INTO admin_settings (key, value) VALUES ('password_hash', ?)
-       ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+      pool,
+      `INSERT INTO admin_settings ("key", value) VALUES ('password_hash', $1)
+       ON CONFLICT ("key") DO UPDATE SET value = EXCLUDED.value`,
       [hash]
     );
 
     console.log(`\nAdmin password ${existing && existing.value ? 'updated' : 'created'} successfully.`);
     console.log(`  login: ${ADMIN_USERNAME}`);
+    if (generated) {
+      console.log(`  password: ${password}  <-- store this safely; it is not saved anywhere`);
+    }
     console.log('  hash : stored in admin_settings.password_hash (bcrypt)');
     console.log('\nSign in at the login page using the username "admin".');
-    db.close();
+    await pool.end();
     process.exit(0);
   } catch (err) {
     console.error('\nFailed to set admin credentials:', err.message);
-    db.close();
+    await pool.end();
     process.exit(1);
   }
 }

@@ -1,5 +1,5 @@
 # Render blueprint: one web service running the all-in-one image
-# (React SPA + nginx + Node API + SQLite in a single container).
+# (React SPA + nginx + Node API) plus a managed PostgreSQL database.
 services:
   - type: web
     name: ishimo
@@ -10,8 +10,11 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: SQLITE_PATH
-        value: /app/data/database.sqlite
+      # Injected from the managed database below.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ishimo-db
+          property: connectionString
       # Protects /api/admin/* — generated once, change it to your own value.
       - key: ADMIN_TOKEN
         generateValue: true
@@ -20,10 +23,19 @@ services:
       - key: ADMIN_PASSWORD
         generateValue: true
 
-    # Persistent disk: keeps the SQLite database and uploaded files across
-    # redeploys. Disks need a paid instance type — on the free plan delete this
-    # block (the app still runs, but data is wiped on every redeploy).
+    # Persistent disk: keeps uploaded files (worker photos, ID scans) and the
+    # deploy-time database dumps across redeploys. REQUIRED for the no-data-loss
+    # guarantee — do not delete this block, and note that disks need a paid
+    # instance type (on the free plan Render wipes the filesystem on every
+    # redeploy). Each deploy dumps the database into /app/data/backups before
+    # the server starts.
     disk:
       name: ishimo-data
       mountPath: /app/data
       sizeGB: 1
+
+# Managed PostgreSQL — Render keeps daily automatic backups of it. The web
+# service connects through DATABASE_URL above.
+databases:
+  - name: ishimo-db
+    plan: free

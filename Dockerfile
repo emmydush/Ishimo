@@ -1,7 +1,8 @@
-# ─── All-in-one image: React SPA + nginx + Node API + SQLite ──────────────────
+# ─── All-in-one image: React SPA + nginx + Node API + PostgreSQL ─────────────
 # Use this on single-service hosts (Render, Railway, a plain VPS with Docker).
 # The API listens on 127.0.0.1:3000 inside the container and nginx proxies to it,
-# so no container-to-container DNS is required.
+# so no container-to-container DNS is required. The database is PostgreSQL,
+# supplied via DATABASE_URL (a managed instance, or a postgres container).
 # For a split stack (separate client/server containers) use docker-compose.yml.
 
 # ── Stage 1: build the React client ──
@@ -24,10 +25,10 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 # ── Stage 3: runtime ──
 FROM node:20-alpine
-RUN apk add --no-cache nginx
+# postgresql-client provides pg_dump for the deploy-time database dumps.
+RUN apk add --no-cache nginx postgresql-client
 
-ENV NODE_ENV=production \
-    SQLITE_PATH=/app/data/database.sqlite
+ENV NODE_ENV=production
 
 WORKDIR /app
 COPY --from=server-deps /build/server/node_modules ./server/node_modules
@@ -36,8 +37,8 @@ COPY --from=client-build /build/client/dist /usr/share/nginx/html
 COPY nginx.single.conf /etc/nginx/nginx.single.conf
 COPY start.sh /app/start.sh
 
-# /app/data holds the database and (through a symlink) the uploaded files, so a
-# single persistent disk mounted at /app/data keeps everything.
+# /app/data holds the deploy-time database dumps and (through a symlink) the
+# uploaded files, so a single persistent disk mounted at /app/data keeps them.
 RUN mkdir -p /app/data/uploads /run/nginx \
     && rm -rf /app/server/uploads \
     && ln -s /app/data/uploads /app/server/uploads \

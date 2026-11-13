@@ -42,6 +42,22 @@ jobs:
     defaults:
       run:
         working-directory: server
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ishimo
+          POSTGRES_USER: ishimo
+          POSTGRES_PASSWORD: ishimo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ishimo -d ishimo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ishimo:ishimo@localhost:5432/ishimo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,10 +69,10 @@ jobs:
       # Fail on known vulnerabilities in shipped (production) dependencies.
       - run: npm audit --omit=dev --audit-level=high
       - name: Module smoke check
-        run: node -e "require('./schema.js'); require('./database.js'); console.log('Modules OK')"
+        run: node -e "require('./schema.js'); const db = require('./database.js'); db.ready.then(() => db.close(() => console.log('Modules OK')))"
       - name: Boot smoke test
         run: |
-          SQLITE_PATH=$RUNNER_TEMP/ci-smoke.sqlite PORT=3123 node server.js &
+          PORT=3123 node server.js &
           SERVER_PID=$!
           for i in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:3123/api/health | grep -q '"status":"ok"'; then
@@ -98,7 +114,17 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Smoke test container
         run: |
-          docker run -d --name ishimo-smoke -e PORT=80 -p 18080:80 ishimo-ci:test
+          docker network create ishimo-ci-net
+          docker run -d --name ishimo-smoke-pg --network ishimo-ci-net \
+            -e POSTGRES_DB=ishimo -e POSTGRES_USER=ishimo -e POSTGRES_PASSWORD=ishimo \
+            postgres:16-alpine
+          for i in $(seq 1 30); do
+            docker exec ishimo-smoke-pg pg_isready -U ishimo -d ishimo && break
+            sleep 2
+          done
+          docker run -d --name ishimo-smoke --network ishimo-ci-net \
+            -e PORT=80 -e DATABASE_URL=postgres://ishimo:ishimo@ishimo-smoke-pg:5432/ishimo \
+            -p 18080:80 ishimo-ci:test
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:18080/api/health | grep -q '"status":"ok"'; then
               echo "Container healthy"

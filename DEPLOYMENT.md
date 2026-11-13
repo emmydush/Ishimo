@@ -4,8 +4,8 @@ Two supported shapes, same code:
 
 | Shape | Files | Where |
 |---|---|---|
-| **All-in-one container** — nginx serves the SPA and proxies to the Node API on `127.0.0.1:3000`, SQLite on a disk | root `Dockerfile`, `nginx.single.conf`, `start.sh` | Render, Railway, any single-service Docker host |
-| **Split stack** — separate client and server containers linked by Docker DNS | `docker-compose.yml`, `client/Dockerfile`, `server/Dockerfile`, `client/nginx.conf` | VPS with Docker Compose |
+| **All-in-one container** — nginx serves the SPA and proxies to the Node API on `127.0.0.1:3000`, PostgreSQL via `DATABASE_URL` | root `Dockerfile`, `nginx.single.conf`, `start.sh` | Render, Railway, any single-service Docker host |
+| **Split stack** — separate client and server containers + a PostgreSQL container linked by Docker DNS | `docker-compose.yml`, `client/Dockerfile`, `server/Dockerfile`, `client/nginx.conf` | VPS with Docker Compose |
 
 Use the all-in-one image on Render: compose's embedded DNS (`127.0.0.11`) and the
 `server` hostname do not exist there, so the split nginx config cannot resolve
@@ -16,25 +16,34 @@ its upstream.
 1. **New → Web Service** from this repository, runtime **Docker**.
 2. Settings: **Dockerfile Path** `Dockerfile` (repository root), **Docker Context
    Directory** `.`, **Health Check Path** `/api/health`.
-3. Environment variables: `ADMIN_TOKEN` (long random value) and, for the first
+3. **Add a PostgreSQL database** (or use the `render.yaml` Blueprint below, which
+   creates the managed `ishimo-db` and injects its connection string as
+   `DATABASE_URL` automatically).
+4. Environment variables: `ADMIN_TOKEN` (long random value) and, for the first
    admin login, `ADMIN_PASSWORD`.
-4. **Add a disk** mounted at `/app/data` (1 GB is plenty). It stores both the
-   SQLite database and the uploaded files (`/app/server/uploads` is a symlink to
-   `/app/data/uploads`). Without a disk the app works but data is wiped on every
-   redeploy — disks require a paid instance type.
-5. Deploy, then check `https://<your-app>.onrender.com/api/health` returns
+5. **Add a disk** mounted at `/app/data` (1 GB is plenty). It stores the uploaded
+   files (`/app/server/uploads` is a symlink to `/app/data/uploads`) and the
+   deploy-time database dumps. Without a disk the app works but uploads and
+   dumps are wiped on every redeploy — disks require a paid instance type.
+6. Deploy, then check `https://<your-app>.onrender.com/api/health` returns
    `{"status":"ok",...}`.
 
-`render.yaml` contains the same setup if you prefer deploying as a Blueprint.
-Render injects `PORT`; `start.sh` makes nginx listen on it while the API stays on
-`127.0.0.1:3000`, so nothing else needs configuring.
+`render.yaml` contains the same setup if you prefer deploying as a Blueprint:
+one web service plus a managed PostgreSQL database (`ishimo-db`) whose
+connection string is injected as `DATABASE_URL`. Render injects `PORT`;
+`start.sh` makes nginx listen on it while the API stays on `127.0.0.1:3000`,
+so nothing else needs configuring.
 
 ### Admin login on Render
 
 ```bash
 # Render Shell (paid plans)
-node /app/server/create-admin.js
+node /app/server/create-admin.js             # prompt for a password (hidden)
+node /app/server/create-admin.js --generate  # print a strong random password once
 ```
+
+The script refuses to overwrite an existing password unless `--force` is added,
+and it stores only a bcrypt hash (never the plain password).
 
 On the free plan there is no shell: set a strong `ADMIN_PASSWORD` env var and
 sign in with username `admin`. That fallback only applies while no password hash
@@ -50,12 +59,12 @@ docker run -p 8080:80 -v ishimo_data:/app/data ishimo
 ## Split stack (VPS with Docker Compose)
 
 nginx serves the React SPA and reverse-proxies `/api` and `/uploads` to the Node
-API, which stores data in SQLite on a named volume.
+API, which stores data in a PostgreSQL container backed by a named volume.
 
 ```
 ishimo/
 ├── client/            React + Vite (built to static files, served by nginx)
-├── server/            Express + SQLite
+├── server/            Express + PostgreSQL (pg)
 └── docker-compose.yml
 ```
 
@@ -114,12 +123,13 @@ visitors may keep running the previous JavaScript bundle.
 
 ## Configuration
 
-Environment variables (see `server/.env.example`; all are optional):
+Environment variables (see `server/.env.example`; only `DATABASE_URL` is
+required, and compose/render.yaml supply it automatically):
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `3000` | API port |
-| `SQLITE_PATH` | `/app/data/database.sqlite` in Docker | Database file |
+| `DATABASE_URL` | *required* | PostgreSQL connection string (compose and render.yaml set it automatically) |
 | `PUBLIC_BASE_URL` | empty | Absolute origin for `/uploads` links. Leave empty for same-origin |
 | `ADMIN_USERNAME` | `admin` | Admin login name |
 | `ADMIN_TOKEN` | `admin-secret-token-ishimo` | Token for `/api/admin/*`. **Change in production** |
@@ -137,8 +147,9 @@ because it is compiled into the bundle.
 ## Database
 
 The schema (12 tables), column migrations and default admin settings live in
-`server/schema.js`. The API applies them automatically at startup, so a fresh
-volume works with no manual step.
+`server/schema.js`. The API applies them automatically at startup against the
+PostgreSQL database from `DATABASE_URL`, so a fresh database works with no
+manual step.
 
 ### Manual init / upgrade
 
@@ -147,8 +158,6 @@ docker compose exec server npm run db:init     # create missing tables, add colu
 ```
 
 - Idempotent: safe to run repeatedly, existing rows are preserved
-- Copies the database to `database.sqlite.bak-<timestamp>` inside the volume
-  before migrating
 - Prints a per-table row count summary
 
 ### Reset (destroys data)
@@ -157,23 +166,50 @@ docker compose exec server npm run db:init     # create missing tables, add colu
 docker compose exec server npm run db:reset    # drops all tables and recreates them
 ```
 
+### Migrating the legacy SQLite data
+
+If you still have the old `database.sqlite`, copy its rows into PostgreSQL with:
+
+```bash
+cd server
+node migrate-data.js --truncate   # source: SQLITE_PATH, target: DATABASE_URL
+```
+
 ### Backup / restore
 
 ```bash
-# backup
-docker compose exec server sh -c 'cat /app/data/database.sqlite' > ishimo-backup.sqlite
+# backup (pg_dump; the server image ships postgresql-client)
+docker compose exec server sh -c 'pg_dump "$DATABASE_URL" --no-owner' > ishimo-backup.sql
 
-# restore (stop the stack first)
-docker compose down
-docker compose run --rm -v $PWD:/backup server sh -c 'cat /backup/ishimo-backup.sqlite > /app/data/database.sqlite'
-docker compose up -d
+# restore (empty first, then load)
+docker compose exec server npm run db:reset
+cat ishimo-backup.sql | docker compose exec -T server sh -c 'psql "$DATABASE_URL"'
 ```
+
+The managed Render database also keeps its own daily automatic backups.
+
+### Automatic backups on every deploy (no-data-loss guarantee)
+
+Every deploy of the all-in-one image runs these safeguards before the API
+accepts traffic:
+
+1. `start.sh` verifies `/app/data` exists and is writable and prints a loud
+   warning if it is not (that is the symptom of a missing disk, which would
+   wipe uploads and dumps on the next redeploy).
+2. `start.sh` refuses to start without `DATABASE_URL` so the API can never
+   silently fall back to a different database.
+3. `server/backup-db.js` runs `pg_dump` into `/app/data/backups/` (keeps the 5
+   most recent) — so a bad release can never destroy the only copy of
+   production data. On Render the managed database also keeps its own
+   automatic backups.
+
+To restore a dump: `psql "$DATABASE_URL" < /app/data/backups/database-*.sql`.
 
 ## Volumes
 
 | Volume | Container path | Contents |
 |---|---|---|
-| `sqlite_data` | `/app/data` | SQLite database (+ automatic `.bak-*` copies) |
+| `postgres_data` | `/var/lib/postgresql/data` | PostgreSQL database files |
 | `uploads_data` | `/app/uploads` | Worker photos, ID scans, passports |
 
 Both survive `docker compose down`. Only `docker compose down -v` deletes them.
@@ -187,7 +223,7 @@ Both survive `docker compose down`. Only `docker compose down -v` deletes them.
   is `no-cache`, `sw.js` is `no-store`.
 - **Uploads**: nginx accepts request bodies up to 15 MB.
 - **Server**: runs as the unprivileged `node` user (uid 1000) and handles
-  `SIGTERM` by closing the HTTP server and the SQLite connection before exiting.
+  `SIGTERM` by closing the HTTP server and the PostgreSQL pool before exiting.
 - **Health**: `/api/health` on the server, `/` on the client. `client` waits for
   `server` to be healthy before starting.
 
@@ -242,16 +278,23 @@ The stored hash does not match. Reset it:
 docker compose exec server npm run admin:create -- --force
 ```
 
-**Database locked**
-`db:init` sets a 5 s busy timeout, so it can run while the API is up. If you
-still hit lock errors, stop the server container first.
+**Database connection refused / relation does not exist**
+The API cannot reach PostgreSQL. Check `DATABASE_URL` and that the database is
+up:
+
+```bash
+docker compose ps postgres
+docker compose logs --tail=50 postgres
+docker compose exec server sh -c 'pg_isready -h postgres -U ishimo -d ishimo'
+```
 
 ## Production checklist
 
 - [ ] `ADMIN_TOKEN` overridden with a long random value
 - [ ] Admin password created with `npm run admin:create`
-- [ ] `docker compose ps` shows both containers `(healthy)`
+- [ ] `docker compose ps` shows all containers `(healthy)`
 - [ ] `curl -s http://<server>/api/health` returns `{"status":"ok",...}`
 - [ ] HTTPS terminated in front of nginx
-- [ ] Database backup cron in place
+- [ ] `DATABASE_URL` points at a backed-up PostgreSQL database (Render managed
+      DB, or a host with pg_dump cron)
 - [ ] `docker compose down -v` never run accidentally

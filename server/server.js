@@ -105,12 +105,12 @@ const adminLimiter = makeLimit(
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Schema, column migrations and default admin settings live in schema.js and
-// are applied by database.js when the SQLite connection opens.
+// are applied by database.js when the PostgreSQL pool starts.
 
 // Helper: log a user activity
 const logActivity = (userId, userEmail, action, entity, detail, ip) => {
   db.run(
-    'INSERT INTO activity_logs (user_id, user_email, action, entity, detail, ip) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO activity_logs (user_id, user_email, action, entity, detail, ip) VALUES ($1, $2, $3, $4, $5, $6)',
     [userId || null, userEmail || 'anonymous', action, entity || null, detail || null, ip || null],
     (err) => { if (err) console.error('Failed to log activity:', err.message); }
   );
@@ -119,7 +119,7 @@ const logActivity = (userId, userEmail, action, entity, detail, ip) => {
 // Helper: create a notification for a user
 const createNotification = (userId, type, message) => {
   db.run(
-    'INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)',
+    'INSERT INTO notifications (user_id, type, message) VALUES ($1, $2, $3)',
     [userId, type, message],
     (err) => { if (err) console.error('Failed to create notification:', err.message); }
   );
@@ -130,7 +130,7 @@ const sendEmail = (to, subject, html, callback) => {
   console.log(`[EMAIL] Attempting to send email to: ${to}, subject: ${subject}`);
   
   // Get SMTP settings from admin_settings
-  db.all("SELECT key, value FROM admin_settings WHERE key IN ('smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_password', 'smtp_from_email', 'smtp_from_name', 'email_notifications_enabled')", [], async (err, rows) => {
+  db.all("SELECT \"key\", value FROM admin_settings WHERE \"key\" IN ('smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_password', 'smtp_from_email', 'smtp_from_name', 'email_notifications_enabled')", [], async (err, rows) => {
     if (err) {
       console.error('[EMAIL] Failed to fetch SMTP settings:', err.message);
       return callback && callback(false);
@@ -266,13 +266,13 @@ app.post('/api/register/employer', async (req, res) => {
     
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
-      db.run('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [email, hash, 'employer'], function(err) {
+      db.run('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id', [email, hash, 'employer'], function(err) {
         if (err) {
           db.run('ROLLBACK');
           return res.status(400).json({ error: 'Email already exists' });
         }
         const userId = this.lastID;
-        db.run('INSERT INTO employers (user_id, phone, location) VALUES (?, ?, ?)', [userId, phone, location], function(err) {
+        db.run('INSERT INTO employers (user_id, phone, location) VALUES ($1, $2, $3)', [userId, phone, location], function(err) {
           if (err) {
             db.run('ROLLBACK');
             return res.status(500).json({ error: 'Failed to create employer profile' });
@@ -281,7 +281,7 @@ app.post('/api/register/employer', async (req, res) => {
           logActivity(userId, email, 'register', 'employer', `Employer registered from ${location}`, req.ip);
           
           // Send welcome email to employer
-          db.get("SELECT value FROM admin_settings WHERE key = 'welcome_email_enabled'", [], (err, welcomeRow) => {
+          db.get("SELECT value FROM admin_settings WHERE \"key\" = 'welcome_email_enabled'", [], (err, welcomeRow) => {
             if (!err && welcomeRow && welcomeRow.value === 'true') {
               const emailHtml = `
                 <h2>Welcome to Ishimo!</h2>
@@ -300,7 +300,7 @@ app.post('/api/register/employer', async (req, res) => {
           });
 
           // Notify admin of new employer registration
-          db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+          db.get("SELECT value FROM admin_settings WHERE \"key\" = 'admin_notification_email'", [], (err, adminRow) => {
             if (!err && adminRow && adminRow.value) {
               const adminEmailHtml = `
                 <h2>New Employer Registration</h2>
@@ -344,13 +344,13 @@ app.post('/api/register/worker', async (req, res) => {
     
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
-      db.run('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [email, hash, 'worker'], function(err) {
+      db.run('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id', [email, hash, 'worker'], function(err) {
         if (err) {
           db.run('ROLLBACK');
           return res.status(400).json({ error: 'Email already exists' });
         }
         const userId = this.lastID;
-        db.run('INSERT INTO workers (user_id, full_name, phone, location) VALUES (?, ?, ?, ?)', [userId, fullName, phone, location || ''], function(err) {
+        db.run('INSERT INTO workers (user_id, full_name, phone, location) VALUES ($1, $2, $3, $4)', [userId, fullName, phone, location || ''], function(err) {
           if (err) {
             db.run('ROLLBACK');
             return res.status(500).json({ error: 'Failed to create worker profile' });
@@ -359,7 +359,7 @@ app.post('/api/register/worker', async (req, res) => {
           logActivity(userId, email, 'register', 'worker', `Worker registered from ${location || 'unknown'}`, req.ip);
           
           // Send welcome email to worker
-          db.get("SELECT value FROM admin_settings WHERE key = 'welcome_email_enabled'", [], (err, welcomeRow) => {
+          db.get("SELECT value FROM admin_settings WHERE \"key\" = 'welcome_email_enabled'", [], (err, welcomeRow) => {
             if (!err && welcomeRow && welcomeRow.value === 'true') {
               const emailHtml = `
                 <h2>Welcome to Ishimo!</h2>
@@ -379,7 +379,7 @@ app.post('/api/register/worker', async (req, res) => {
           });
 
           // Notify admin of new worker registration
-          db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+          db.get("SELECT value FROM admin_settings WHERE \"key\" = 'admin_notification_email'", [], (err, adminRow) => {
             if (!err && adminRow && adminRow.value) {
               const adminEmailHtml = `
                 <h2>New Worker Registration</h2>
@@ -412,7 +412,7 @@ app.post('/api/login', async (req, res) => {
   }
 
   if (email === ADMIN_USERNAME) {
-    db.get("SELECT value FROM admin_settings WHERE key = 'password_hash'", async (err, row) => {
+    db.get("SELECT value FROM admin_settings WHERE \"key\" = 'password_hash'", async (err, row) => {
       if (err || !row) {
         // Fallback to hardcoded if not set up
         if (password === ADMIN_PASSWORD) {
@@ -432,7 +432,7 @@ app.post('/api/login', async (req, res) => {
     return;
   }
 
-  db.get('SELECT id, password_hash, role, status FROM users WHERE email = ?', [email], async (err, user) => {
+  db.get('SELECT id, password_hash, role, status FROM users WHERE email = $1', [email], async (err, user) => {
     if (err) return res.status(500).json({ error: 'Server error' });
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
@@ -448,7 +448,7 @@ app.post('/api/login', async (req, res) => {
       if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
 
       if (user.role === 'worker') {
-        db.get('SELECT status FROM workers WHERE user_id = ?', [user.id], (err, worker) => {
+        db.get('SELECT status FROM workers WHERE user_id = $1', [user.id], (err, worker) => {
           if (err) return res.status(500).json({ error: 'Server error' });
           logActivity(user.id, email, 'login', 'worker', 'Worker logged in', req.ip);
           res.json({
@@ -497,8 +497,16 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     db.run(`
-      INSERT OR REPLACE INTO worker_profiles (worker_id, skills, experience, national_id, id_photo_path, passport_photo_path, additional_photo_path, recommendation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worker_profiles (worker_id, skills, experience, national_id, id_photo_path, passport_photo_path, additional_photo_path, recommendation)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (worker_id) DO UPDATE SET
+        skills = EXCLUDED.skills,
+        experience = EXCLUDED.experience,
+        national_id = EXCLUDED.national_id,
+        id_photo_path = EXCLUDED.id_photo_path,
+        passport_photo_path = EXCLUDED.passport_photo_path,
+        additional_photo_path = EXCLUDED.additional_photo_path,
+        recommendation = EXCLUDED.recommendation
     `, [userId, skills, experience, nationalId, idPhotoPath, passportPhotoPath, additionalPhotoPath, recommendation], function(err) {
       if (err) {
         db.run('ROLLBACK');
@@ -507,7 +515,7 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
       }
       
       // Update worker status to completed
-      db.run('UPDATE workers SET status = ? WHERE user_id = ?', ['completed', userId], function(err) {
+      db.run('UPDATE workers SET status = $1 WHERE user_id = $2', ['completed', userId], function(err) {
         if (err) {
           db.run('ROLLBACK');
           console.error('Error updating worker status:', err);
@@ -590,7 +598,7 @@ app.post('/api/jobs/request', writeLimiter, (req, res) => {
   if (!employerId || isNaN(employerId) || !workerId || isNaN(workerId)) return res.status(400).json({ error: 'Missing or invalid IDs.' });
 
   // Check if a pending request already exists
-  db.get('SELECT * FROM job_requests WHERE employer_id = ? AND worker_id = ? AND status = "pending"', [employerId, workerId], (err, row) => {
+  db.get('SELECT * FROM job_requests WHERE employer_id = $1 AND worker_id = $2 AND status = \'pending\'', [employerId, workerId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (row) return res.status(400).json({ error: 'Request already sent' });
 
@@ -603,12 +611,12 @@ app.post('/api/jobs/request', writeLimiter, (req, res) => {
         w.full_name as worker_name
       FROM employers e
       JOIN users u ON e.user_id = u.id
-      JOIN workers w ON w.user_id = ?
-      WHERE e.user_id = ?
+      JOIN workers w ON w.user_id = $1
+      WHERE e.user_id = $2
     `, [workerId, employerId], (err, details) => {
       if (err) return res.status(500).json({ error: 'Database error' });
 
-      db.run('INSERT INTO job_requests (employer_id, worker_id) VALUES (?, ?)', [employerId, workerId], function(err) {
+      db.run('INSERT INTO job_requests (employer_id, worker_id) VALUES ($1, $2)', [employerId, workerId], function(err) {
         if (err) return res.status(500).json({ error: 'Failed to send request' });
         
         // Notify worker of new job request
@@ -646,7 +654,7 @@ app.get('/api/worker/:id/dashboard', readLimiter, (req, res) => {
     SELECT w.full_name, w.status, w.profile_views, wp.passport_photo_path
     FROM workers w
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
-    WHERE w.user_id = ?
+    WHERE w.user_id = $1
   `, [workerId], (err, workerRow) => {
     if (err || !workerRow) return res.status(404).json({ error: 'Worker not found' });
 
@@ -667,7 +675,7 @@ app.get('/api/worker/:id/dashboard', readLimiter, (req, res) => {
       FROM job_requests jr
       JOIN employers e ON jr.employer_id = e.user_id
       JOIN users u ON e.user_id = u.id
-      WHERE jr.worker_id = ?
+      WHERE jr.worker_id = $1
       ORDER BY jr.created_at DESC
     `;
     
@@ -676,7 +684,7 @@ app.get('/api/worker/:id/dashboard', readLimiter, (req, res) => {
 
       // Real rating stats for this worker
       db.get(
-        'SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = ?',
+        'SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = $1',
         [workerId],
         (ratingErr, ratingRow) => {
           if (ratingErr) return res.status(500).json({ error: 'Failed to fetch ratings' });
@@ -708,11 +716,11 @@ app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
   }
 
   // Fetch request to get employer_id for notification
-  db.get('SELECT employer_id FROM job_requests WHERE id = ? AND worker_id = ?', [jobId, workerId], (err, reqRow) => {
+  db.get('SELECT employer_id FROM job_requests WHERE id = $1 AND worker_id = $2', [jobId, workerId], (err, reqRow) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!reqRow) return res.status(404).json({ error: 'Job not found or unauthorized' });
 
-    db.run('UPDATE job_requests SET status = ? WHERE id = ?', [status, jobId], function(err) {
+    db.run('UPDATE job_requests SET status = $1 WHERE id = $2', [status, jobId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update status' });
       
       // Notify employer of worker response
@@ -729,11 +737,11 @@ app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
             w.full_name as worker_name
           FROM employers e
           JOIN users u ON e.user_id = u.id
-          JOIN workers w ON w.user_id = ?
-          WHERE e.user_id = ?
+          JOIN workers w ON w.user_id = $1
+          WHERE e.user_id = $2
         `, [workerId, reqRow.employer_id], (err, details) => {
           if (!err && details) {
-            db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+            db.get("SELECT value FROM admin_settings WHERE \"key\" = 'admin_notification_email'", [], (err, adminRow) => {
               if (!err && adminRow && adminRow.value) {
                 const emailHtml = `
                   <h2>Worker Hired</h2>
@@ -763,7 +771,7 @@ app.get('/api/worker/:id/profile', readLimiter, (req, res) => {
     SELECT w.full_name, w.phone, w.location, wp.skills, wp.experience, wp.national_id, wp.id_photo_path, wp.passport_photo_path
     FROM workers w
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
-    WHERE w.user_id = ?
+    WHERE w.user_id = $1
   `;
   db.get(query, [workerId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
@@ -811,30 +819,32 @@ app.put('/api/worker/:id/profile', writeLimiter, upload.fields([
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
-    db.run('UPDATE workers SET full_name = ?, phone = ?, location = ? WHERE user_id = ?', [full_name, phone, location || '', workerId], function(err) {
+    db.run('UPDATE workers SET full_name = $1, phone = $2, location = $3 WHERE user_id = $4', [full_name, phone, location || '', workerId], function(err) {
       if (err) {
         db.run('ROLLBACK');
         return res.status(500).json({ error: 'Failed to update basic info' });
       }
 
       // Update worker_profiles. Build the query dynamically based on whether files were uploaded.
-      let updateProfileQuery = 'UPDATE worker_profiles SET skills = ?, experience = ?, national_id = ?';
+      // Placeholder numbers follow the current params length so the optional
+      // file columns keep correct positions in PostgreSQL ($n) syntax.
+      let updateProfileQuery = 'UPDATE worker_profiles SET skills = $1, experience = $2, national_id = $3';
       const updateProfileParams = [skills, experience, nationalId];
 
       if (idPhotoPath) {
-        updateProfileQuery += ', id_photo_path = ?';
+        updateProfileQuery += `, id_photo_path = $${updateProfileParams.length + 1}`;
         updateProfileParams.push(idPhotoPath);
       }
       if (passportPhotoPath) {
-        updateProfileQuery += ', passport_photo_path = ?';
+        updateProfileQuery += `, passport_photo_path = $${updateProfileParams.length + 1}`;
         updateProfileParams.push(passportPhotoPath);
       }
       if (additionalPhotoPath) {
-        updateProfileQuery += ', additional_photo_path = ?';
+        updateProfileQuery += `, additional_photo_path = $${updateProfileParams.length + 1}`;
         updateProfileParams.push(additionalPhotoPath);
       }
 
-      updateProfileQuery += ' WHERE worker_id = ?';
+      updateProfileQuery += ` WHERE worker_id = $${updateProfileParams.length + 1}`;
       updateProfileParams.push(workerId);
 
       db.run(updateProfileQuery, updateProfileParams, function(err) {
@@ -859,14 +869,14 @@ app.put('/api/worker/:id/settings', writeLimiter, (req, res) => {
   if (!currentPassword) return res.status(400).json({ error: 'Current password is required.' });
   if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
 
-  db.get('SELECT password_hash FROM users WHERE id = ?', [userId], async (err, row) => {
+  db.get('SELECT password_hash FROM users WHERE id = $1', [userId], async (err, row) => {
     if (err || !row) return res.status(404).json({ error: 'User not found' });
     
     const match = await bcrypt.compare(currentPassword, row.password_hash);
     if (!match) return res.status(401).json({ error: 'Incorrect current password' });
     
     const newHash = await bcrypt.hash(newPassword, 10);
-    db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, userId], function(err) {
+    db.run('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update password' });
       logActivity(userId, null, 'change_password', 'user', 'Worker changed password', req.ip);
       res.json({ success: true });
@@ -877,7 +887,7 @@ app.put('/api/worker/:id/settings', writeLimiter, (req, res) => {
 // 11. Get Employer Profile
 app.get('/api/employer/:id/profile', readLimiter, (req, res) => {
   const userId = req.params.id;
-  db.get('SELECT phone, location FROM employers WHERE user_id = ?', [userId], (err, row) => {
+  db.get('SELECT phone, location FROM employers WHERE user_id = $1', [userId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!row) return res.status(404).json({ error: 'Employer not found' });
     res.json(row);
@@ -893,7 +903,7 @@ app.put('/api/employer/:id/profile', writeLimiter, (req, res) => {
   if (!phone)    return res.status(400).json({ error: 'Phone number is required.' });
   if (!location) return res.status(400).json({ error: 'Location is required.' });
 
-  db.run('UPDATE employers SET phone = ?, location = ? WHERE user_id = ?', [phone, location, userId], function(err) {
+  db.run('UPDATE employers SET phone = $1, location = $2 WHERE user_id = $3', [phone, location, userId], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to update profile' });
     if (this.changes === 0) return res.status(404).json({ error: 'Employer not found' });
     logActivity(userId, null, 'update_profile', 'employer', 'Employer updated their profile', req.ip);
@@ -909,12 +919,12 @@ app.put('/api/employer/:id/settings', writeLimiter, (req, res) => {
 
   if (!currentPassword) return res.status(400).json({ error: 'Current password is required.' });
   if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
-  db.get('SELECT password_hash FROM users WHERE id = ?', [userId], async (err, row) => {
+  db.get('SELECT password_hash FROM users WHERE id = $1', [userId], async (err, row) => {
     if (err || !row) return res.status(404).json({ error: 'User not found' });
     const match = await bcrypt.compare(currentPassword, row.password_hash);
     if (!match) return res.status(401).json({ error: 'Incorrect current password' });
     const newHash = await bcrypt.hash(newPassword, 10);
-    db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, userId], function(err) {
+    db.run('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update password' });
       logActivity(userId, null, 'change_password', 'user', 'Employer changed password', req.ip);
       res.json({ success: true });
@@ -943,14 +953,14 @@ app.get('/api/worker/:id/full-profile', readLimiter, (req, res) => {
     FROM workers w
     JOIN users u ON w.user_id = u.id
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
-    WHERE w.user_id = ?
+    WHERE w.user_id = $1
   `;
   db.get(query, [workerId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!row) return res.status(404).json({ error: 'Worker not found' });
 
     // Increment profile views
-    db.run('UPDATE workers SET profile_views = profile_views + 1 WHERE user_id = ?', [workerId], (incrementErr) => {
+    db.run('UPDATE workers SET profile_views = profile_views + 1 WHERE user_id = $1', [workerId], (incrementErr) => {
       if (incrementErr) console.error('Failed to increment profile views:', incrementErr.message);
     });
 
@@ -969,11 +979,11 @@ app.get('/api/worker/:id/full-profile', readLimiter, (req, res) => {
     }
 
     // Get completed job count (accepted requests)
-    db.get('SELECT COUNT(*) as completed_jobs FROM job_requests WHERE worker_id = ? AND status = "accepted"', [workerId], (err2, countRow) => {
+    db.get('SELECT COUNT(*) as completed_jobs FROM job_requests WHERE worker_id = $1 AND status = \'accepted\'', [workerId], (err2, countRow) => {
       row.completed_jobs = countRow ? countRow.completed_jobs : 0;
       
       // Get rating average
-      db.get('SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = ?', [workerId], (err3, ratingRow) => {
+      db.get('SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM worker_ratings WHERE worker_id = $1', [workerId], (err3, ratingRow) => {
         if (err3 || !ratingRow || ratingRow.rating_count === 0) {
           row.rating = 0;
           row.rating_count = 0;
@@ -1002,7 +1012,7 @@ app.post('/api/jobs', writeLimiter, (req, res) => {
   if (!cleanLoc)    return res.status(400).json({ error: 'Location is required.' });
 
   // Verify that the user exists and is an employer
-  db.get('SELECT role FROM users WHERE id = ?', [employerId], (err, user) => {
+  db.get('SELECT role FROM users WHERE id = $1', [employerId], (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Database error during authorization check.' });
     }
@@ -1012,7 +1022,8 @@ app.post('/api/jobs', writeLimiter, (req, res) => {
 
     db.run(`
       INSERT INTO jobs (employer_id, title, description, location, salary_range) 
-      VALUES (?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
     `, [employerId, cleanTitle, cleanDesc, cleanLoc, cleanSalary], function(err) {
       if (err) {
         console.error('Job insertion error:', err);
@@ -1047,7 +1058,7 @@ app.get('/api/employer/:id/jobs', readLimiter, (req, res) => {
   const employerId = req.params.id;
   const query = `
     SELECT * FROM jobs 
-    WHERE employer_id = ? 
+    WHERE employer_id = $1 
     ORDER BY created_at DESC
   `;
   db.all(query, [employerId], (err, rows) => {
@@ -1065,15 +1076,15 @@ app.post('/api/jobs/:id/apply', writeLimiter, (req, res) => {
   if (!workerId || isNaN(workerId)) return res.status(400).json({ error: 'Missing or invalid workerId.' });
 
   // Check if application already exists
-  db.get('SELECT * FROM job_applications WHERE job_id = ? AND worker_id = ?', [jobId, workerId], (err, row) => {
+  db.get('SELECT * FROM job_applications WHERE job_id = $1 AND worker_id = $2', [jobId, workerId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (row) return res.status(400).json({ error: 'You have already applied for this job' });
 
     // Get job info to notify employer
-    db.get('SELECT employer_id, title FROM jobs WHERE id = ?', [jobId], (err, job) => {
+    db.get('SELECT employer_id, title FROM jobs WHERE id = $1', [jobId], (err, job) => {
       if (err || !job) return res.status(404).json({ error: 'Job not found' });
 
-      db.run('INSERT INTO job_applications (job_id, worker_id) VALUES (?, ?)', [jobId, workerId], function(err) {
+      db.run('INSERT INTO job_applications (job_id, worker_id) VALUES ($1, $2)', [jobId, workerId], function(err) {
         if (err) return res.status(500).json({ error: 'Failed to submit application' });
         // Notify employer of new application
         createNotification(job.employer_id, 'new_application', `A worker has applied to your job posting: "${job.title}".`);
@@ -1101,7 +1112,7 @@ app.get('/api/employer/:id/applications', readLimiter, (req, res) => {
     JOIN jobs j ON ja.job_id = j.id
     JOIN workers w ON ja.worker_id = w.user_id
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
-    WHERE j.employer_id = ?
+    WHERE j.employer_id = $1
     ORDER BY ja.created_at DESC
   `;
   db.all(query, [employerId], (err, rows) => {
@@ -1124,12 +1135,12 @@ app.put('/api/applications/:id/status', writeLimiter, (req, res) => {
     SELECT ja.worker_id, j.employer_id, j.title
     FROM job_applications ja
     JOIN jobs j ON ja.job_id = j.id
-    WHERE ja.id = ?
+    WHERE ja.id = $1
   `, [applicationId], (err, app) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (!app) return res.status(404).json({ error: 'Application not found' });
 
-    db.run('UPDATE job_applications SET status = ? WHERE id = ?', [status, applicationId], function(err) {
+    db.run('UPDATE job_applications SET status = $1 WHERE id = $2', [status, applicationId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update status' });
       // Notify worker of employer decision
       const action = status === 'accepted' ? 'accepted' : status === 'hired' ? 'hired you for' : status === 'fired' ? 'fired you from' : status === 'left' ? 'marked you as left on' : 'rejected';
@@ -1152,7 +1163,7 @@ app.get('/api/worker/:id/applications', readLimiter, (req, res) => {
       j.location as job_location
     FROM job_applications ja
     JOIN jobs j ON ja.job_id = j.id
-    WHERE ja.worker_id = ?
+    WHERE ja.worker_id = $1
     ORDER BY ja.created_at DESC
   `;
   db.all(query, [workerId], (err, rows) => {
@@ -1173,13 +1184,13 @@ app.post('/api/worker/:id/rating', writeLimiter, (req, res) => {
   if (!rating || isNaN(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
 
   // Check if employer has already rated this worker
-  db.get('SELECT * FROM worker_ratings WHERE worker_id = ? AND employer_id = ?', [workerId, employerId], (err, existingRating) => {
+  db.get('SELECT * FROM worker_ratings WHERE worker_id = $1 AND employer_id = $2', [workerId, employerId], (err, existingRating) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     
     if (existingRating) {
       // Update existing rating
       db.run(
-        'UPDATE worker_ratings SET rating = ?, comment = ? WHERE worker_id = ? AND employer_id = ?',
+        'UPDATE worker_ratings SET rating = $1, comment = $2 WHERE worker_id = $3 AND employer_id = $4',
         [rating, comment, workerId, employerId],
         function(err) {
           if (err) return res.status(500).json({ error: 'Failed to update rating' });
@@ -1190,7 +1201,7 @@ app.post('/api/worker/:id/rating', writeLimiter, (req, res) => {
     } else {
       // Insert new rating
       db.run(
-        'INSERT INTO worker_ratings (worker_id, employer_id, rating, comment) VALUES (?, ?, ?, ?)',
+        'INSERT INTO worker_ratings (worker_id, employer_id, rating, comment) VALUES ($1, $2, $3, $4)',
         [workerId, employerId, rating, comment],
         function(err) {
           if (err) return res.status(500).json({ error: 'Failed to submit rating' });
@@ -1215,7 +1226,7 @@ app.get('/api/worker/:id/ratings', readLimiter, (req, res) => {
     FROM worker_ratings wr
     JOIN employers e ON wr.employer_id = e.user_id
     JOIN users u ON e.user_id = u.id
-    WHERE wr.worker_id = ?
+    WHERE wr.worker_id = $1
     ORDER BY wr.created_at DESC
   `;
   db.all(query, [workerId], (err, rows) => {
@@ -1235,7 +1246,7 @@ const adminAuth = (req, res, next) => {
 
 // A1. Get All Admin Settings
 app.get('/api/admin/settings', adminLimiter, adminAuth, (req, res) => {
-  db.all('SELECT key, value FROM admin_settings', [], (err, rows) => {
+  db.all('SELECT "key", value FROM admin_settings', [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Failed to fetch settings' });
     const settings = {};
     rows.forEach(row => {
@@ -1253,7 +1264,7 @@ app.put('/api/admin/settings/:key', adminLimiter, adminAuth, (req, res) => {
 
   console.log(`Updating setting: ${key} = ${value}`);
 
-  db.run('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [key, value], function(err) {
+  db.run('INSERT INTO admin_settings ("key", value) VALUES ($1, $2) ON CONFLICT ("key") DO UPDATE SET value = EXCLUDED.value', [key, value], function(err) {
     if (err) {
       console.error('Failed to update setting:', err.message);
       return res.status(500).json({ error: 'Failed to update setting: ' + err.message });
@@ -1270,7 +1281,7 @@ app.put('/api/admin/settings/password', adminLimiter, adminAuth, async (req, res
 
   try {
     const hash = await bcrypt.hash(newPassword, 10);
-    db.run("INSERT OR REPLACE INTO admin_settings (key, value) VALUES ('password_hash', ?)", [hash], (err) => {
+    db.run("INSERT INTO admin_settings (\"key\", value) VALUES ('password_hash', $1) ON CONFLICT (\"key\") DO UPDATE SET value = EXCLUDED.value", [hash], (err) => {
       if (err) return res.status(500).json({ error: 'Failed to update admin password' });
       res.json({ success: true });
     });
@@ -1286,7 +1297,7 @@ app.put('/api/admin/users/:id/password', adminLimiter, adminAuth, async (req, re
 
   try {
     const hash = await bcrypt.hash(newPassword, 10);
-    db.run("UPDATE users SET password_hash = ? WHERE id = ?", [hash, req.params.id], (err) => {
+    db.run("UPDATE users SET password_hash = $1 WHERE id = $2", [hash, req.params.id], (err) => {
       if (err) return res.status(500).json({ error: 'Failed to update user password' });
       res.json({ success: true });
     });
@@ -1304,8 +1315,8 @@ app.get('/api/admin/stats', adminLimiter, adminAuth, (req, res) => {
     total_jobs:          'SELECT COUNT(*) as count FROM jobs',
     total_applications:  'SELECT COUNT(*) as count FROM job_applications',
     total_notifications: 'SELECT COUNT(*) as count FROM notifications',
-    pending_workers:     'SELECT COUNT(*) as count FROM workers WHERE status = "pending"',
-    open_jobs:           'SELECT COUNT(*) as count FROM jobs WHERE status = "open"',
+    pending_workers:     'SELECT COUNT(*) as count FROM workers WHERE status = \'pending\'',
+    open_jobs:           'SELECT COUNT(*) as count FROM jobs WHERE status = \'open\'',
   };
   const keys = Object.keys(queries);
   const stats = {};
@@ -1329,7 +1340,7 @@ app.get('/api/admin/users', adminLimiter, adminAuth, (req, res) => {
 
 // A4. Delete User
 app.delete('/api/admin/users/:id', adminLimiter, adminAuth, (req, res) => {
-  db.run('DELETE FROM users WHERE id = ?', [req.params.id], function(err) {
+  db.run('DELETE FROM users WHERE id = $1', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete user' });
     if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
     res.json({ success: true });
@@ -1364,11 +1375,11 @@ app.put('/api/admin/users/:id/status', adminLimiter, adminAuth, (req, res) => {
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
   
   // Get user email before updating status
-  db.get('SELECT email, role FROM users WHERE id = ?', [req.params.id], (err, user) => {
+  db.get('SELECT email, role FROM users WHERE id = $1', [req.params.id], (err, user) => {
     if (err) return res.status(500).json({ error: 'Failed to fetch user' });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    db.run('UPDATE users SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
+    db.run('UPDATE users SET status = $1 WHERE id = $2', [status, req.params.id], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update user status' });
       
       // Send email notification to user when blocked
@@ -1432,12 +1443,12 @@ app.put('/api/admin/workers/:id/status', adminLimiter, adminAuth, (req, res) => 
     SELECT u.email, u.role, w.full_name 
     FROM users u 
     JOIN workers w ON u.id = w.user_id 
-    WHERE w.user_id = ?
+    WHERE w.user_id = $1
   `, [req.params.id], (err, worker) => {
     if (err) return res.status(500).json({ error: 'Failed to fetch worker' });
     if (!worker) return res.status(404).json({ error: 'Worker not found' });
 
-    db.run('UPDATE workers SET status = ? WHERE user_id = ?', [status, req.params.id], function(err) {
+    db.run('UPDATE workers SET status = $1 WHERE user_id = $2', [status, req.params.id], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update' });
       
       // Send email notification to worker when suspended
@@ -1479,7 +1490,7 @@ app.put('/api/admin/workers/:id/availability', adminLimiter, adminAuth, (req, re
   const { availability } = req.body;
   const allowed = ['available', 'busy', 'unavailable'];
   if (!allowed.includes(availability)) return res.status(400).json({ error: 'Invalid availability status' });
-  db.run('UPDATE workers SET availability = ? WHERE user_id = ?', [availability, req.params.id], function(err) {
+  db.run('UPDATE workers SET availability = $1 WHERE user_id = $2', [availability, req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to update availability' });
     res.json({ success: true });
   });
@@ -1508,7 +1519,7 @@ app.get('/api/admin/jobs', adminLimiter, adminAuth, (req, res) => {
     FROM jobs j
     JOIN users u ON j.employer_id = u.id
     LEFT JOIN job_applications ja ON j.id = ja.job_id
-    GROUP BY j.id
+    GROUP BY j.id, j.title, j.location, j.salary_range, j.status, j.created_at, u.email
     ORDER BY j.created_at DESC
   `;
   db.all(q, [], (err, rows) => {
@@ -1519,7 +1530,7 @@ app.get('/api/admin/jobs', adminLimiter, adminAuth, (req, res) => {
 
 // A9. Delete Job
 app.delete('/api/admin/jobs/:id', adminLimiter, adminAuth, (req, res) => {
-  db.run('DELETE FROM jobs WHERE id = ?', [req.params.id], function(err) {
+  db.run('DELETE FROM jobs WHERE id = $1', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete job' });
     if (this.changes === 0) return res.status(404).json({ error: 'Job not found' });
     res.json({ success: true });
@@ -1550,7 +1561,7 @@ app.put('/api/admin/applications/:id/status', adminLimiter, adminAuth, (req, res
   const { status } = req.body;
   const allowed = ['pending', 'accepted', 'declined'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  db.run('UPDATE job_applications SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
+  db.run('UPDATE job_applications SET status = $1 WHERE id = $2', [status, req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to update' });
     res.json({ success: true });
   });
@@ -1573,7 +1584,7 @@ app.get('/api/admin/notifications', adminLimiter, adminAuth, (req, res) => {
 
 // A13. Delete Notification
 app.delete('/api/admin/notifications/:id', adminLimiter, adminAuth, (req, res) => {
-  db.run('DELETE FROM notifications WHERE id = ?', [req.params.id], function(err) {
+  db.run('DELETE FROM notifications WHERE id = $1', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to delete' });
     res.json({ success: true });
   });
@@ -1598,7 +1609,7 @@ app.get('/api/admin/logs', adminLimiter, adminAuth, (req, res) => {
 app.get('/api/notifications/:userId', readLimiter, (req, res) => {
   const { userId } = req.params;
   db.all(
-    'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+    'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
     [userId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: 'Failed to fetch notifications' });
@@ -1610,7 +1621,7 @@ app.get('/api/notifications/:userId', readLimiter, (req, res) => {
 // 22. Mark a single notification as read
 app.put('/api/notifications/:id/read', writeLimiter, (req, res) => {
   const { id } = req.params;
-  db.run('UPDATE notifications SET is_read = 1 WHERE id = ?', [id], function(err) {
+  db.run('UPDATE notifications SET is_read = 1 WHERE id = $1', [id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to mark as read' });
     res.json({ success: true });
   });
@@ -1619,7 +1630,7 @@ app.put('/api/notifications/:id/read', writeLimiter, (req, res) => {
 // 23. Mark all notifications as read for a user
 app.put('/api/notifications/:userId/read-all', writeLimiter, (req, res) => {
   const { userId } = req.params;
-  db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [userId], function(err) {
+  db.run('UPDATE notifications SET is_read = 1 WHERE user_id = $1', [userId], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to mark all as read' });
     res.json({ success: true });
   });
@@ -1633,7 +1644,7 @@ app.post('/api/forgot-password', (req, res) => {
     return res.status(400).json({ error: 'Email is required' });
   }
 
-  db.get('SELECT id FROM users WHERE email = ?', [email], (err, user) => {
+  db.get('SELECT id FROM users WHERE email = $1', [email], (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
     }
@@ -1648,14 +1659,14 @@ app.post('/api/forgot-password', (req, res) => {
     const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
 
     // Delete any existing tokens for this user
-    db.run('DELETE FROM password_reset_tokens WHERE user_id = ?', [user.id], (err) => {
+    db.run('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id], (err) => {
       if (err) {
         return res.status(500).json({ error: 'Failed to process request' });
       }
 
       // Insert new token
       db.run(
-        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
         [user.id, token, expiresAt],
         (err) => {
           if (err) {
@@ -1706,7 +1717,7 @@ app.post('/api/reset-password', async (req, res) => {
 
   // Find valid token
   db.get(
-    'SELECT user_id, expires_at, used FROM password_reset_tokens WHERE token = ?',
+    'SELECT user_id, expires_at, used FROM password_reset_tokens WHERE token = $1',
     [token],
     async (err, tokenRow) => {
       if (err) {
@@ -1730,7 +1741,7 @@ app.post('/api/reset-password', async (req, res) => {
 
       // Update user password
       db.run(
-        'UPDATE users SET password_hash = ? WHERE id = ?',
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
         [hash, tokenRow.user_id],
         (err) => {
           if (err) {
@@ -1739,7 +1750,7 @@ app.post('/api/reset-password', async (req, res) => {
 
           // Mark token as used
           db.run(
-            'UPDATE password_reset_tokens SET used = 1 WHERE token = ?',
+            'UPDATE password_reset_tokens SET used = 1 WHERE token = $1',
             [token],
             (err) => {
               if (err) {
@@ -1764,7 +1775,7 @@ server.on('error', (err) => {
   console.error('Server error:', err);
 });
 
-// Graceful shutdown so `docker stop` does not corrupt the SQLite file
+// Graceful shutdown: stop accepting connections, then close the database pool
 const shutdown = (signal) => {
   console.log(`${signal} received, shutting down gracefully...`);
   server.close(() => {

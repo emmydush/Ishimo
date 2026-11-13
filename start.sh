@@ -6,8 +6,24 @@ LISTEN_PORT="${PORT:-80}"
 sed "s/__LISTEN_PORT__/${LISTEN_PORT}/" /etc/nginx/nginx.single.conf > /etc/nginx/http.d/default.conf
 echo "nginx listening on ${LISTEN_PORT}, proxying /api and /uploads to 127.0.0.1:3000"
 
-# SQLite and uploaded files live here; on Render mount a disk at /app/data.
+# Uploaded files and deploy-time database dumps live here; on Render mount a
+# disk at /app/data. The database itself is PostgreSQL (DATABASE_URL).
 mkdir -p /app/data/uploads
+
+# The API refuses to boot without a database — fail fast with a clear message.
+if [ -z "$DATABASE_URL" ]; then
+  echo "FATAL: DATABASE_URL is not set — point it at the PostgreSQL database." >&2
+  exit 1
+fi
+
+# No-data-loss guard: refuse to silently run on an ephemeral filesystem, and
+# dump the database before the new code touches it (keeps the last 5 dumps in
+# /app/data/backups).
+if [ ! -d /app/data ] || [ ! -w /app/data ]; then
+  echo "WARNING: /app/data is missing or not writable — uploads and backups will NOT survive redeploys." >&2
+else
+  node /app/server/backup-db.js || echo "WARNING: database dump failed before startup" >&2
+fi
 
 cd /app/server
 PORT=3000 node server.js &

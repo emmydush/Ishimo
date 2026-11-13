@@ -13,19 +13,21 @@ RUN npm ci --omit=dev && npm cache clean --force
 # ─── Runtime ──────────────────────────────────────────────────────────────────
 FROM node:20-alpine
 
+# postgresql-client provides pg_dump for database dumps/restores.
+RUN apk add --no-cache postgresql-client
+
 ENV NODE_ENV=production \
-    PORT=3000 \
-    SQLITE_PATH=/app/data/database.sqlite
+    PORT=3000
 
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Writable locations for the SQLite database and uploaded files.
+# Writable location for uploaded files (worker photos, ID scans, passports).
 # Owned by "node" so the container can run unprivileged.
-RUN mkdir -p /app/data /app/uploads \
-    && chown -R node:node /app/data /app/uploads
+RUN mkdir -p /app/uploads \
+    && chown -R node:node /app/uploads
 
 USER node
 

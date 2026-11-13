@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // ─── Ishimo Database Initializer ─────────────────────────────────────────────
 // Creates every table, applies column migrations and seeds default admin
 // settings. Safe to run repeatedly (idempotent) — existing data is preserved.
@@ -8,14 +7,12 @@
 //   node init-db.js --reset --force Drop all tables, then initialize from scratch
 //   node init-db.js --help          Show this help
 //
-// The target file can be overridden with the SQLITE_PATH environment variable.
+// Connects via DATABASE_URL (PostgreSQL).
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const pg = require('pg');
 require('dotenv').config();
 
-const { initializeDatabase, TABLES, all, run, get } = require('./schema');
+const { initializeDatabase, TABLES, all, get } = require('./schema');
 
 const args = process.argv.slice(2);
 const hasFlag = (flag) => args.includes(flag);
@@ -29,10 +26,10 @@ Ishimo database initializer
   node init-db.js --help           Show this help
 
 Environment:
-  SQLITE_PATH   Path to the SQLite file (default: <server>/database.sqlite)
+  DATABASE_URL   postgres://user:password@host:5432/ishimo (required)
 
 Notes:
-  Existing databases are copied to <file>.bak-<timestamp> before migrating.
+  Resetting deletes ALL data — take a pg_dump backup (backup-db.js) first.
 `);
   process.exit(0);
 }
@@ -40,27 +37,21 @@ Notes:
 const RESET = hasFlag('--reset') || hasFlag('-r');
 const FORCE = hasFlag('--force') || hasFlag('-f');
 
-const dbPath = path.resolve(__dirname, process.env.SQLITE_PATH || 'database.sqlite');
-
 if (RESET && !FORCE) {
   console.error('Refusing to reset: --reset deletes ALL data.');
   console.error('Re-run with --reset --force if you really mean it.');
   process.exit(1);
 }
 
-const relPath = path.relative(process.cwd(), dbPath) || dbPath;
-
 async function dropAllTables(db) {
-  await run(db, 'PRAGMA foreign_keys = OFF');
   const rows = await all(
     db,
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
   );
-  for (const { name } of rows) {
-    await run(db, `DROP TABLE IF EXISTS "${name}"`);
-    console.log(`  dropped: ${name}`);
+  for (const { tablename } of rows) {
+    await db.query(`DROP TABLE IF EXISTS "${tablename}" CASCADE`);
+    console.log(`  dropped: ${tablename}`);
   }
-  await run(db, 'PRAGMA foreign_keys = ON');
 }
 
 async function summarise(db) {
@@ -77,57 +68,43 @@ async function summarise(db) {
 
   const indexes = await all(
     db,
-    "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'"
+    "SELECT indexname FROM pg_indexes WHERE schemaname = 'public'"
   );
   console.log(`  ${'indexes'.padEnd(24, ' ')} ${String(indexes.length).padStart(5, ' ')}`);
 }
 
 async function main() {
-  const existsBefore = fs.existsSync(dbPath);
+  const connectionString = process.env.DATABASE_URL || '';
+
+  if (!connectionString) {
+    console.error('DATABASE_URL is not set. Point it at the PostgreSQL database');
+    console.error('(e.g. postgres://user:password@host:5432/ishimo) and retry.');
+    process.exit(1);
+  }
 
   console.log('Ishimo database initializer');
-  console.log(`  database : ${relPath}`);
+  console.log('  database : PostgreSQL via DATABASE_URL');
   console.log(`  mode     : ${RESET ? 'reset (all data will be deleted)' : 'init / upgrade'}`);
-  console.log(`  file     : ${existsBefore ? 'existing (will be migrated in place)' : 'new (will be created)'}`);
 
-  // Migrating an existing database is not reversible — keep a copy first.
-  if (existsBefore && !RESET) {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `${dbPath}.bak-${stamp}`;
-    try {
-      fs.copyFileSync(dbPath, backupPath);
-      console.log(`  backup   : ${path.basename(backupPath)}`);
-    } catch (err) {
-      console.warn(`  backup   : skipped (${err.message})`);
-    }
-  }
-  console.log('');
-
-  const db = new sqlite3.Database(dbPath);
-  await new Promise((resolve, reject) => {
-    db.on('open', resolve);
-    db.on('error', reject);
-  });
+  const pool = new pg.Pool({ connectionString, max: 1 });
 
   try {
     if (RESET) {
-      console.log('Dropping existing tables...');
-      await dropAllTables(db);
+      console.log('\nDropping existing tables...');
+      await dropAllTables(pool);
       console.log('');
     }
 
-    await run(db, 'PRAGMA foreign_keys = ON');
-    await initializeDatabase(db);
+    await initializeDatabase(pool);
     console.log('Schema created and default settings seeded.');
-    console.log(`  foreign keys: ${(await get(db, 'PRAGMA foreign_keys')).foreign_keys ? 'ON' : 'OFF'}`);
 
-    await summarise(db);
+    await summarise(pool);
     console.log('\nDone. Database is ready.');
-    db.close();
+    await pool.end();
     process.exit(0);
   } catch (err) {
     console.error('\nInitialization failed:', err.message);
-    db.close();
+    await pool.end();
     process.exit(1);
   }
 }
