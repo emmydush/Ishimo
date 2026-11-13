@@ -80,11 +80,10 @@ const translations = {
     worker_button: 'I am a Worker',
     
     // Landing Page
-    landing_title: 'Connect with Elite Professionals',
+    landing_title: 'Professional Household Network',
     landing_subtitle: 'The premier platform connecting skilled workers with discerning employers',
     get_started: 'Get Started',
     learn_more: 'Learn More',
-    household_network: 'Household Network',
     connect_description: 'Connect with top-tier nannies, cooks, cleaners, and security professionals. Experience a new standard of trust and excellence in your home.',
     
     // Auth
@@ -200,11 +199,10 @@ const translations = {
     worker_button: 'Je suis Travailleur',
     
     // Landing Page
-    landing_title: 'Connectez-vous avec des professionnels d\'élite',
+    landing_title: 'Réseau Ménager Professionnel',
     landing_subtitle: 'La plateforme principale reliant les travailleurs qualifiés aux employeurs exigeants',
     get_started: 'Commencer',
     learn_more: 'En savoir plus',
-    household_network: 'Réseau Ménager',
     connect_description: 'Connectez-vous avec des nounous, cuisiniers, nettoyeurs et agents de sécurité de premier plan. Découvrez un nouveau standard de confiance et d\'excellence dans votre foyer.',
     
     // Auth
@@ -320,11 +318,10 @@ const translations = {
     worker_button: 'Umukozi',
     
     // Landing Page
-    landing_title: 'Ihuriro rya Elite ry\'Abanyamwuga bo mu Mirimo yo mu Rugo',
+    landing_title: 'Urubuga rw\'Abanyamwuga bo mu Mirimo yo mu Rugo',
     landing_subtitle: 'Platafoma zana abakozi b\'ubuhanga kuri ba mwirinzi',
     get_started: 'Tangira',
     learn_more: 'Soma ibindi',
-    household_network: 'Urubuga r\'injyi',
     connect_description: 'Huza na ba Elite b\'abanyamwuga bakomeye mu bijyanye no kurera abana, guteka, gukora isuku no gucunga umutekano. Menya urwego rushya rw\'icyizere, ubunyamwuga n\'ubuziranenge mu rugo rwawe.',
     
     // Auth

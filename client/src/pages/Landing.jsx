@@ -38,8 +38,7 @@ const Landing = () => {
         style={{ zIndex: 1, textAlign: 'center', maxWidth: '800px', width: '100%', marginBottom: '48px' }}
       >
         <h1 className="responsive-hero-title">
-          {t('landing_title')} <br />
-          <span className="text-gradient-gold">{t('household_network')}</span>
+          <span className="text-gradient-gold">{t('landing_title')}</span>
         </h1>
         <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', marginBottom: '40px', lineHeight: 1.6 }}>
           {t('connect_description')}
