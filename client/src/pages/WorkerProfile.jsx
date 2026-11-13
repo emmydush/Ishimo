@@ -125,7 +125,7 @@ const WorkerProfile = () => {
 
             <div className="input-group">
               <label className="input-label">Location</label>
-              <input type="text" className="input-field" placeholder="City, State or District" value={profile.location} onChange={e => setProfile({...profile, location: e.target.value})} />
+              <input type="text" className="input-field" placeholder="City, District or Sector" value={profile.location} onChange={e => setProfile({...profile, location: e.target.value})} />
             </div>
 
             <h3 style={{ marginTop: '32px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL } from '../config/api';
 
 const ResetPassword = () => {
@@ -162,9 +163,7 @@ const ResetPassword = () => {
         <form onSubmit={handleSubmit}>
           <div className="input-group" style={{ marginBottom: '20px' }}>
             <label className="input-label">New Password</label>
-            <input
-              type="password"
-              className="input-field"
+            <PasswordInput
               placeholder="Enter new password (min 8 characters)"
               required
               minLength={8}
@@ -176,9 +175,7 @@ const ResetPassword = () => {
 
           <div className="input-group" style={{ marginBottom: '32px' }}>
             <label className="input-label">Confirm New Password</label>
-            <input
-              type="password"
-              className="input-field"
+            <PasswordInput
               placeholder="Confirm new password"
               required
               minLength={8}

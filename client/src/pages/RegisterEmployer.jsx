@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import PasswordInput from '../components/PasswordInput';
+import { isValidEmail, isValidPassword, isValidRwandaPhone } from '../utils/validation';
 import { API_BASE_URL, networkErrorMessage } from '../config/api';
 
 const RegisterEmployer = () => {
@@ -14,6 +16,7 @@ const RegisterEmployer = () => {
     phone: '',
     location: ''
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,16 +27,21 @@ const RegisterEmployer = () => {
       location: formData.location.trim(),
     };
     if (!cleaned.email) return showToast('Email is required.', 'error');
-    if (cleaned.password.length < 8) return showToast('Password must be at least 8 characters.', 'error');
+    if (!isValidEmail(cleaned.email)) return showToast('Please enter a valid email address.', 'error');
+    if (!cleaned.password) return showToast('Password is required.', 'error');
+    if (!isValidPassword(cleaned.password)) return showToast('Password must be at least 8 characters with a letter and a number.', 'error');
     if (!cleaned.phone) return showToast('Phone number is required.', 'error');
+    if (!isValidRwandaPhone(cleaned.phone)) return showToast('Enter a valid Rwanda phone number, e.g. +250 7XX XXX XXX.', 'error');
     if (!cleaned.location) return showToast('Location is required.', 'error');
+    if (cleaned.location.length < 3) return showToast('Location must be at least 3 characters.', 'error');
+    if (!termsAccepted) return showToast('You must accept the Terms and Conditions to register.', 'error');
     try {
       const response = await fetch(`${API_BASE_URL}/api/register/employer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(cleaned)
+        body: JSON.stringify({ ...cleaned, termsAccepted: true })
       });
       
       const data = await response.json();
@@ -86,10 +94,8 @@ const RegisterEmployer = () => {
           </div>
           <div className="input-group">
             <label className="input-label">Password</label>
-            <input 
-              type="password" 
-              className="input-field" 
-              placeholder="Create a strong password" 
+            <PasswordInput
+              placeholder="Min 8 chars with letters and numbers" 
               required 
               value={formData.password}
               onChange={e => setFormData({...formData, password: e.target.value})}
@@ -100,7 +106,7 @@ const RegisterEmployer = () => {
             <input 
               type="tel" 
               className="input-field" 
-              placeholder="+1 (555) 000-0000" 
+              placeholder="+250 7XX XXX XXX" 
               required 
               value={formData.phone}
               onChange={e => setFormData({...formData, phone: e.target.value})}
@@ -111,11 +117,31 @@ const RegisterEmployer = () => {
             <input 
               type="text" 
               className="input-field" 
-              placeholder="City, State or Zip Code" 
+              placeholder="City, District or Sector" 
               required 
               value={formData.location}
               onChange={e => setFormData({...formData, location: e.target.value})}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '24px' }}>
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              required
+              style={{ width: '18px', height: '18px', marginTop: '2px', accentColor: 'var(--accent-gold)', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              I accept the{' '}
+              <span
+                style={{ color: 'var(--accent-gold)', cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => navigate('/terms')}
+              >
+                Terms and Conditions
+              </span>{' '}
+              and agree to abide by the platform rules.
+            </span>
           </div>
 
           <motion.button 

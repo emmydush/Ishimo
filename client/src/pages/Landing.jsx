@@ -285,10 +285,10 @@ const Landing = () => {
                   <Mail size={16} /> contact@ishimo.com
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  <Phone size={16} /> +1 (555) 123-4567
+                  <Phone size={16} /> +250 788 123 456
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  <MapPin size={16} /> Global Services
+                  <MapPin size={16} /> Kigali, Rwanda
                 </div>
               </div>
             </div>

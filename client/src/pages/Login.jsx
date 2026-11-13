@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL, networkErrorMessage } from '../config/api';
 
 const Login = () => {
@@ -81,9 +82,7 @@ const Login = () => {
           </div>
           <div className="input-group" style={{ marginBottom: '12px' }}>
             <label className="input-label">{t('password')}</label>
-            <input
-              type="password"
-              className="input-field"
+            <PasswordInput
               placeholder={t('enter_password')}
               required
               value={formData.password}

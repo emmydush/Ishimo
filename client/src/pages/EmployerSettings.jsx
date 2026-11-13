@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import { motion } from 'framer-motion';
 import { Settings, Shield, Bell } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL } from '../config/api';
 
 const EmployerSettings = () => {
@@ -57,15 +58,15 @@ const EmployerSettings = () => {
             <form onSubmit={handlePasswordChange}>
               <div className="input-group">
                 <label className="input-label">Current Password</label>
-                <input type="password" className="input-field" required value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} />
+                <PasswordInput required value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} />
               </div>
               <div className="input-group">
                 <label className="input-label">New Password</label>
-                <input type="password" className="input-field" required minLength={8} value={passwords.new} onChange={e => setPasswords({ ...passwords, new: e.target.value })} />
+                <PasswordInput required minLength={8} value={passwords.new} onChange={e => setPasswords({ ...passwords, new: e.target.value })} />
               </div>
               <div className="input-group" style={{ marginBottom: '24px' }}>
                 <label className="input-label">Confirm New Password</label>
-                <input type="password" className="input-field" required minLength={8} value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} />
+                <PasswordInput required minLength={8} value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} />
               </div>
               <button className="btn-outline" type="submit" style={{ width: '100%' }}>Update Password</button>
             </form>

@@ -8,6 +8,7 @@ import {
   Globe, Clock, Key, Zap, Settings as SettingsIcon
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL } from '../config/api';
 
 const AdminDashboard = () => {
@@ -821,9 +822,7 @@ const AdminDashboard = () => {
                   </div>
                   <div style={{ marginTop: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Password</label>
-                    <input
-                      type="password"
-                      className="input-field"
+                    <PasswordInput
                       placeholder="Your SMTP password or app password"
                       value={settings.smtp_password}
                       onChange={(e) => handleUpdateSetting('smtp_password', e.target.value)}
@@ -1088,10 +1087,8 @@ const AdminDashboard = () => {
               <form onSubmit={handleChangeAdminPassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>New Admin Password</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     name="newPassword"
-                    className="input-field"
                     placeholder="Enter new password (min 8 chars)"
                     required
                     minLength={8}

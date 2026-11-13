@@ -16,11 +16,13 @@ import WorkerPublicProfile from './pages/WorkerPublicProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Terms from './pages/Terms';
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register-employer" element={<RegisterEmployer />} />
         <Route path="/register-worker" element={<RegisterWorker />} />

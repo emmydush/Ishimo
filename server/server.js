@@ -51,6 +51,12 @@ const sanitizeNumber = (value) => {
 
 // Basic email format check
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+// Password policy: at least 8 characters with at least one letter and one number
+const isValidPassword = (password) => /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password);
+
+// Rwanda mobile numbers: optional +250 / 250 / 0 prefix, then 7X XXX XXX
+const isValidRwandaPhone = (phone) => /^(?:\+?250|0)7\d{8}$/.test(phone.replace(/[\s\-().]/g, ''));
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
@@ -247,9 +253,11 @@ app.post('/api/register/employer', authLimiter, async (req, res) => {
   const location = sanitize(req.body.location);
 
   if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
-  if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (!password || !isValidPassword(password)) return res.status(400).json({ error: 'Password must be at least 8 characters with at least one letter and one number.' });
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
-  if (!location) return res.status(400).json({ error: 'Location is required.' });
+  if (!isValidRwandaPhone(phone)) return res.status(400).json({ error: 'A valid Rwanda phone number is required (e.g. +250 7XX XXX XXX).' });
+  if (!location || location.length < 3) return res.status(400).json({ error: 'Location is required.' });
+  if (req.body.termsAccepted !== true) return res.status(400).json({ error: 'You must accept the Terms and Conditions to register.' });
 
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -321,10 +329,13 @@ app.post('/api/register/worker', authLimiter, async (req, res) => {
   const phone    = sanitize(req.body.phone);
   const location = sanitize(req.body.location);
 
-  if (!fullName) return res.status(400).json({ error: 'Full name is required.' });
+  if (!fullName || fullName.length < 3) return res.status(400).json({ error: 'Full name must be at least 3 characters.' });
   if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
-  if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (!password || !isValidPassword(password)) return res.status(400).json({ error: 'Password must be at least 8 characters with at least one letter and one number.' });
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
+  if (!isValidRwandaPhone(phone)) return res.status(400).json({ error: 'A valid Rwanda phone number is required (e.g. +250 7XX XXX XXX).' });
+  if (!location || location.length < 3) return res.status(400).json({ error: 'Location is required.' });
+  if (req.body.termsAccepted !== true) return res.status(400).json({ error: 'You must accept the Terms and Conditions to register.' });
 
   try {
     const hash = await bcrypt.hash(password, 10);
