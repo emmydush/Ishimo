@@ -6,7 +6,6 @@ import { useToast } from '../context/ToastContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '../context/LanguageContext';
 import NotificationPanel from './NotificationPanel';
-import LanguageSwitcher from './LanguageSwitcher';
 
 const Sidebar = ({ role }) => {
   const navigate = useNavigate();
@@ -82,7 +81,6 @@ const Sidebar = ({ role }) => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <LanguageSwitcher />
           <span style={{
             fontSize: '0.7rem',
             fontWeight: 600,
