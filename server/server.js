@@ -27,6 +27,11 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Behind nginx (Render / docker-compose) the client IP arrives via X-Forwarded-For.
+// Trust the first hop so rate limiters key on the real client address instead of
+// the local proxy.
+app.set('trust proxy', 1);
+
 // Health probe used by Docker / load balancers
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: Math.round(process.uptime()) });
@@ -60,8 +65,8 @@ const isValidRwandaPhone = (phone) => /^(?:\+?250|0)7\d{8}$/.test(phone.replace(
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
-// Set to true to re-enable request throttling.
-const RATE_LIMITING_ENABLED = false;
+// Throttling is enabled by default. Set RATE_LIMITING_ENABLED=false to disable.
+const RATE_LIMITING_ENABLED = process.env.RATE_LIMITING_ENABLED !== 'false';
 
 const passThrough = (req, res, next) => next();
 
@@ -77,11 +82,8 @@ const makeLimit = (windowMinutes, max, message) => {
   });
 };
 
-// 1. Auth: login + register — 10 attempts per 15 min per IP
-const authLimiter = makeLimit(
-  15, 10,
-  'Too many attempts. Please wait 15 minutes before trying again.'
-);
+// 1. Auth endpoints (login, register, password reset) are intentionally NOT
+//    throttled so users can retry credentials without lockouts.
 
 // 2. Write operations: profile updates, job posting, applications — 30 per 10 min
 const writeLimiter = makeLimit(
@@ -246,7 +248,7 @@ app.get('/api/test', (req, res) => {
 });
 
 // 1. Register Employer
-app.post('/api/register/employer', authLimiter, async (req, res) => {
+app.post('/api/register/employer', async (req, res) => {
   const email    = sanitize(req.body.email).toLowerCase();
   const password = (req.body.password || '').trim();
   const phone    = sanitize(req.body.phone);
@@ -322,7 +324,7 @@ app.post('/api/register/employer', authLimiter, async (req, res) => {
 });
 
 // 2. Register Worker
-app.post('/api/register/worker', authLimiter, async (req, res) => {
+app.post('/api/register/worker', async (req, res) => {
   const fullName = sanitize(req.body.fullName);
   const email    = sanitize(req.body.email).toLowerCase();
   const password = (req.body.password || '').trim();
@@ -402,7 +404,7 @@ app.post('/api/register/worker', authLimiter, async (req, res) => {
 });
 
 // 3. Login
-app.post('/api/login', authLimiter, async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const email    = sanitize(req.body.email).toLowerCase();
   const password = (req.body.password || '').trim();
   if (!email || !password) {
@@ -520,7 +522,7 @@ app.post('/api/worker/profile', writeLimiter, upload.fields([
 });
 
 // 4. Get Available Workers
-app.get('/api/workers', (req, res) => {
+app.get('/api/workers', readLimiter, (req, res) => {
   console.log('GET /api/workers called');
   
   const query = `
@@ -636,7 +638,7 @@ app.post('/api/jobs/request', writeLimiter, (req, res) => {
 });
 
 // 6. Get Worker Dashboard Data (including Job Requests)
-app.get('/api/worker/:id/dashboard', (req, res) => {
+app.get('/api/worker/:id/dashboard', readLimiter, (req, res) => {
   const workerId = req.params.id;
   
   // Get worker details
@@ -755,7 +757,7 @@ app.put('/api/jobs/:jobId/status', writeLimiter, (req, res) => {
 });
 
 // 8. Get Worker Profile details
-app.get('/api/worker/:id/profile', (req, res) => {
+app.get('/api/worker/:id/profile', readLimiter, (req, res) => {
   const workerId = req.params.id;
   const query = `
     SELECT w.full_name, w.phone, w.location, wp.skills, wp.experience, wp.national_id, wp.id_photo_path, wp.passport_photo_path
@@ -873,7 +875,7 @@ app.put('/api/worker/:id/settings', writeLimiter, (req, res) => {
 });
 
 // 11. Get Employer Profile
-app.get('/api/employer/:id/profile', (req, res) => {
+app.get('/api/employer/:id/profile', readLimiter, (req, res) => {
   const userId = req.params.id;
   db.get('SELECT phone, location FROM employers WHERE user_id = ?', [userId], (err, row) => {
     if (err) return res.status(500).json({ error: 'Database error' });
@@ -921,7 +923,7 @@ app.put('/api/employer/:id/settings', writeLimiter, (req, res) => {
 });
 
 // 14. Get Full Worker Public Profile (for Employers)
-app.get('/api/worker/:id/full-profile', (req, res) => {
+app.get('/api/worker/:id/full-profile', readLimiter, (req, res) => {
   const workerId = req.params.id;
   const query = `
     SELECT 
@@ -1041,7 +1043,7 @@ app.get('/api/jobs', readLimiter, (req, res) => {
 });
 
 // 17. Get jobs posted by a specific employer
-app.get('/api/employer/:id/jobs', (req, res) => {
+app.get('/api/employer/:id/jobs', readLimiter, (req, res) => {
   const employerId = req.params.id;
   const query = `
     SELECT * FROM jobs 
@@ -1083,7 +1085,7 @@ app.post('/api/jobs/:id/apply', writeLimiter, (req, res) => {
 });
 
 // 19. Employer views applications for their jobs
-app.get('/api/employer/:id/applications', (req, res) => {
+app.get('/api/employer/:id/applications', readLimiter, (req, res) => {
   const employerId = req.params.id;
   const query = `
     SELECT
@@ -1139,7 +1141,7 @@ app.put('/api/applications/:id/status', writeLimiter, (req, res) => {
 });
 
 // 20. Worker views their applications
-app.get('/api/worker/:id/applications', (req, res) => {
+app.get('/api/worker/:id/applications', readLimiter, (req, res) => {
   const workerId = req.params.id;
   const query = `
     SELECT 
@@ -1201,7 +1203,7 @@ app.post('/api/worker/:id/rating', writeLimiter, (req, res) => {
 });
 
 // 22. Get worker ratings
-app.get('/api/worker/:id/ratings', (req, res) => {
+app.get('/api/worker/:id/ratings', readLimiter, (req, res) => {
   const workerId = req.params.id;
   const query = `
     SELECT 
@@ -1593,7 +1595,7 @@ app.get('/api/admin/logs', adminLimiter, adminAuth, (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-app.get('/api/notifications/:userId', (req, res) => {
+app.get('/api/notifications/:userId', readLimiter, (req, res) => {
   const { userId } = req.params;
   db.all(
     'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
@@ -1606,7 +1608,7 @@ app.get('/api/notifications/:userId', (req, res) => {
 });
 
 // 22. Mark a single notification as read
-app.put('/api/notifications/:id/read', (req, res) => {
+app.put('/api/notifications/:id/read', writeLimiter, (req, res) => {
   const { id } = req.params;
   db.run('UPDATE notifications SET is_read = 1 WHERE id = ?', [id], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to mark as read' });
@@ -1615,7 +1617,7 @@ app.put('/api/notifications/:id/read', (req, res) => {
 });
 
 // 23. Mark all notifications as read for a user
-app.put('/api/notifications/:userId/read-all', (req, res) => {
+app.put('/api/notifications/:userId/read-all', writeLimiter, (req, res) => {
   const { userId } = req.params;
   db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [userId], function(err) {
     if (err) return res.status(500).json({ error: 'Failed to mark all as read' });
@@ -1624,7 +1626,7 @@ app.put('/api/notifications/:userId/read-all', (req, res) => {
 });
 
 // 24. Forgot Password - Request reset token
-app.post('/api/forgot-password', authLimiter, (req, res) => {
+app.post('/api/forgot-password', (req, res) => {
   const email = sanitize(req.body.email).toLowerCase();
 
   if (!email) {
@@ -1691,7 +1693,7 @@ app.post('/api/forgot-password', authLimiter, (req, res) => {
 });
 
 // 25. Reset Password with token
-app.post('/api/reset-password', authLimiter, async (req, res) => {
+app.post('/api/reset-password', async (req, res) => {
   const { token, newPassword } = req.body;
 
   if (!token || !newPassword) {
