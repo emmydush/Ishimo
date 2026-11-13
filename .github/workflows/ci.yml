@@ -119,9 +119,14 @@ jobs:
     env:
       DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
     steps:
+      # Never let a push to main pass CI/CD without a production deploy.
+      - name: Fail if deploy hook is not configured
+        if: env.DEPLOY_HOOK_URL == ''
+        run: |
+          echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set."
+          echo "Add the Render deploy hook URL as the RENDER_DEPLOY_HOOK_URL repository secret"
+          echo "so that pushes to main deploy to production after CI/CD passes."
+          exit 1
       - name: Trigger Render deploy hook
         if: env.DEPLOY_HOOK_URL != ''
         run: curl -fsS -X POST "${{ env.DEPLOY_HOOK_URL }}"
-      - name: Deploy hook not configured
-        if: env.DEPLOY_HOOK_URL == ''
-        run: echo "Set the RENDER_DEPLOY_HOOK_URL secret to enable automatic deploys to Render."
