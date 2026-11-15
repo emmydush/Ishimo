@@ -27,7 +27,7 @@ const WorkerDashboard = () => {
       if (response.ok) {
         setData(result);
       } else {
-        showToast(result.error || 'Failed to load dashboard data', 'error');
+        showToast(result.error || t('err_dashboard_load'), 'error');
       }
       
       const appRes = await fetch(`${API_BASE_URL}/api/worker/${userId}/applications`);
@@ -56,13 +56,13 @@ const WorkerDashboard = () => {
       });
       const result = await response.json();
       if (response.ok) {
-        showToast(`Job request ${status} successfully!`, 'success');
+        showToast(t(status === 'accepted' ? 'job_accepted_success' : 'job_declined_success'), 'success');
         fetchDashboardData();
       } else {
-        showToast(result.error || 'Failed to update status', 'error');
+        showToast(result.error || t('err_status_update'), 'error');
       }
     } catch (err) {
-      showToast('Network error while updating status', 'error');
+      showToast(t('err_network_status'), 'error');
     }
   };
 
@@ -71,13 +71,13 @@ const WorkerDashboard = () => {
       <div className="app-layout">
         <Sidebar role="worker" />
         <div className="main-content flex-center">
-          <p style={{ color: 'var(--text-muted)' }}>Loading dashboard...</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('loading_dashboard')}</p>
         </div>
       </div>
     );
   }
 
-  const workerName = data?.worker?.full_name || 'Worker';
+  const workerName = data?.worker?.full_name || t('worker');
   const isVerified = data?.worker?.status === 'completed';
   const profilePhotoUrl = data?.worker?.passport_photo_url;
   const jobs = data?.jobs || [];
@@ -116,11 +116,11 @@ const WorkerDashboard = () => {
                 <h1 style={{ fontSize: '2rem', lineHeight: 1.2 }}>{t('welcome_back')}, {workerName}</h1>
                 {isVerified && (
                   <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-emerald)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle size={14} /> {t('verified')} Professional
+                    <CheckCircle size={14} /> {t('verified')} {t('professional')}
                   </div>
                 )}
               </div>
-              <p style={{ color: 'var(--text-muted)' }}>Here is an overview of your activity and requests.</p>
+              <p style={{ color: 'var(--text-muted)' }}>{t('dashboard_overview')}</p>
             </div>
           </div>
 
@@ -144,7 +144,7 @@ const WorkerDashboard = () => {
           {[
             { label: t('active_jobs'), value: jobs.filter(j => j.status === 'accepted').length, icon: <Briefcase size={24} color="var(--accent-emerald)" /> },
             { label: t('hours_logged'), value: '164', icon: <Clock size={24} color="var(--accent-gold)" /> },
-            { label: t('average_rating'), value: ratingCount > 0 ? ratingValue : 'No ratings', icon: <Star size={24} color="#f59e0b" /> },
+            { label: t('average_rating'), value: ratingCount > 0 ? ratingValue : t('no_ratings'), icon: <Star size={24} color="#f59e0b" /> },
             { label: t('profile_views'), value: profileViews, icon: <TrendingUp size={24} color="#3b82f6" /> },
           ].map((stat, idx) => (
             <motion.div 
@@ -217,11 +217,11 @@ const WorkerDashboard = () => {
                     style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: job.status === 'declined' ? 0.5 : 1 }}
                   >
                     <div>
-                      <h3 style={{ fontSize: '1.2rem', marginBottom: '4px' }}>Job Request #{job.job_id}</h3>
+                      <h3 style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{t('job_request')} #{job.job_id}</h3>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', gap: '16px' }}>
-                        <span>Contact: {job.employer_email}</span>
+                        <span>{t('contact')}: {job.employer_email}</span>
                         <span>•</span>
-                        <span>Location: {job.employer_location}</span>
+                        <span>{t('location')}: {job.employer_location}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -230,12 +230,12 @@ const WorkerDashboard = () => {
                       </div>
                       {job.status === 'pending' ? (
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn-outline" style={{ padding: '8px 16px' }} onClick={() => updateJobStatus(job.job_id, 'declined')}>Decline</button>
-                          <button className="btn-premium" style={{ padding: '8px 16px', background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #047857 100%)', color: '#fff' }} onClick={() => updateJobStatus(job.job_id, 'accepted')}>Accept</button>
+                          <button className="btn-outline" style={{ padding: '8px 16px' }} onClick={() => updateJobStatus(job.job_id, 'declined')}>{t('decline')}</button>
+                          <button className="btn-premium" style={{ padding: '8px 16px', background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #047857 100%)', color: '#fff' }} onClick={() => updateJobStatus(job.job_id, 'accepted')}>{t('accept')}</button>
                         </div>
                       ) : (
                         <div style={{ padding: '8px 16px', background: job.status === 'accepted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: job.status === 'accepted' ? 'var(--accent-emerald)' : '#ef4444', borderRadius: '8px', fontWeight: 500, textTransform: 'capitalize' }}>
-                          {job.status}
+                          {t(job.status)}
                         </div>
                       )}
                     </div>
@@ -265,7 +265,7 @@ const WorkerDashboard = () => {
                     <div>
                       <h3 style={{ fontSize: '1.2rem', marginBottom: '4px', color: 'var(--text-primary)' }}>{app.job_title}</h3>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', gap: '16px' }}>
-                        <span>Location: {app.job_location}</span>
+                        <span>{t('location')}: {app.job_location}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -273,7 +273,7 @@ const WorkerDashboard = () => {
                         {new Date(app.created_at).toLocaleDateString()}
                       </div>
                       <div style={{ padding: '8px 16px', background: 'var(--bg-card)', color: 'var(--text-primary)', borderRadius: '8px', fontWeight: 500, border: '1px solid var(--border-color)', textTransform: 'capitalize' }}>
-                        {app.status}
+                        {t(app.status)}
                       </div>
                     </div>
                   </motion.div>

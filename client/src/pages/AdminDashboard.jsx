@@ -8,12 +8,14 @@ import {
   Globe, Clock, Key, Zap, Settings as SettingsIcon
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL } from '../config/api';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { showToast, confirmAction } = useToast();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
@@ -103,7 +105,7 @@ const AdminDashboard = () => {
       const json = await res.json();
       setData(json);
     } catch (err) {
-      showToast('Failed to load data', 'error');
+      showToast(t('err_load_data'), 'error');
     } finally {
       setLoading(false);
     }
@@ -120,7 +122,7 @@ const AdminDashboard = () => {
         setSettings(prev => ({ ...prev, ...data }));
       }
     } catch (err) {
-      showToast('Failed to load settings', 'error');
+      showToast(t('err_load_settings'), 'error');
     } finally {
       setLoading(false);
     }
@@ -138,12 +140,12 @@ const AdminDashboard = () => {
       });
       if (res.ok) {
         setSettings(prev => ({ ...prev, [key]: value }));
-        showToast('Setting updated successfully', 'success');
+        showToast(t('setting_updated'), 'success');
       } else {
-        showToast('Failed to update setting', 'error');
+        showToast(t('err_update_setting'), 'error');
       }
     } catch (err) {
-      showToast('Server error', 'error');
+      showToast(t('err_server_error'), 'error');
     }
   };
 
@@ -154,9 +156,9 @@ const AdminDashboard = () => {
 
   const handleDelete = async (type, id) => {
     const confirmed = await confirmAction({
-      title: `Delete ${type}`,
-      message: `Are you sure you want to delete this ${type}? This action cannot be undone.`,
-      confirmText: 'Yes, Delete',
+      title: t('delete_entity').replace('{type}', t(type)),
+      message: t('confirm_delete_message').replace('{type}', t(type)),
+      confirmText: t('yes_delete'),
       type: 'error'
     });
 
@@ -168,13 +170,13 @@ const AdminDashboard = () => {
         headers: { 'x-admin-token': adminToken }
       });
       if (res.ok) {
-        showToast(`${type} deleted successfully`, 'success');
+        showToast(t('deleted_success').replace('{type}', t(type)), 'success');
         fetchData(activeTab);
       } else {
-        showToast(`Failed to delete ${type}`, 'error');
+        showToast(t('delete_failed').replace('{type}', t(type)), 'error');
       }
     } catch {
-      showToast('Server error', 'error');
+      showToast(t('err_server_error'), 'error');
     }
   };
 
@@ -189,13 +191,13 @@ const AdminDashboard = () => {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        showToast('Status updated', 'success');
+        showToast(t('status_updated'), 'success');
         fetchData(activeTab);
       } else {
-        showToast('Failed to update status', 'error');
+        showToast(t('err_status_update'), 'error');
       }
     } catch {
-      showToast('Server error', 'error');
+      showToast(t('err_server_error'), 'error');
     }
   };
 
@@ -210,21 +212,21 @@ const AdminDashboard = () => {
         body: JSON.stringify({ availability })
       });
       if (res.ok) {
-        showToast('Availability updated', 'success');
+        showToast(t('availability_updated'), 'success');
         fetchData(activeTab);
       } else {
-        showToast('Failed to update availability', 'error');
+        showToast(t('err_update_availability'), 'error');
       }
     } catch {
-      showToast('Server error', 'error');
+      showToast(t('err_server_error'), 'error');
     }
   };
 
   const handleResetUserPassword = async (userId) => {
-    const newPassword = prompt('Enter new password for this user (min 8 chars):');
+    const newPassword = prompt(t('password_prompt'));
     if (!newPassword) return;
     if (newPassword.length < 8) {
-      return showToast('Password must be at least 8 characters', 'error');
+      return showToast(t('password_min_error'), 'error');
     }
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/password`, {
@@ -236,12 +238,12 @@ const AdminDashboard = () => {
         body: JSON.stringify({ newPassword })
       });
       if (res.ok) {
-        showToast('User password reset successfully', 'success');
+        showToast(t('password_reset_success'), 'success');
       } else {
-        showToast('Failed to reset user password', 'error');
+        showToast(t('err_reset_password'), 'error');
       }
     } catch {
-      showToast('Server error', 'error');
+      showToast(t('err_server_error'), 'error');
     }
   };
 
@@ -249,7 +251,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     const newPassword = e.target.newPassword.value;
     if (!newPassword || newPassword.length < 8) {
-      return showToast('Password must be at least 8 characters', 'error');
+      return showToast(t('password_min_error'), 'error');
     }
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/settings/password`, {
@@ -261,13 +263,13 @@ const AdminDashboard = () => {
         body: JSON.stringify({ newPassword })
       });
       if (res.ok) {
-        showToast('Admin password changed successfully', 'success');
+        showToast(t('admin_password_changed'), 'success');
         e.target.reset();
       } else {
-        showToast('Failed to change admin password', 'error');
+        showToast(t('err_change_admin_password'), 'error');
       }
     } catch {
-      showToast('Server error', 'error');
+      showToast(t('err_server_error'), 'error');
     }
   };
 
@@ -286,13 +288,13 @@ const AdminDashboard = () => {
       case 'overview':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-            <StatCard title="Total Users" value={data.total_users} icon={<Users />} color="#3b82f6" />
-            <StatCard title="Total Workers" value={data.total_workers} icon={<Briefcase />} color="var(--accent-emerald)" />
-            <StatCard title="Total Employers" value={data.total_employers} icon={<Briefcase />} color="var(--accent-gold)" />
-            <StatCard title="Active Jobs" value={data.open_jobs} icon={<FileText />} color="#a855f7" />
-            <StatCard title="Pending Workers" value={data.pending_workers} icon={<AlertTriangle />} color="#f59e0b" />
-            <StatCard title="Total Applications" value={data.total_applications} icon={<FileText />} color="#06b6d4" />
-            <StatCard title="Notifications Sent" value={data.total_notifications} icon={<Bell />} color="#ef4444" />
+            <StatCard title={t('stat_total_users')} value={data.total_users} icon={<Users />} color="#3b82f6" />
+            <StatCard title={t('stat_total_workers')} value={data.total_workers} icon={<Briefcase />} color="var(--accent-emerald)" />
+            <StatCard title={t('stat_total_employers')} value={data.total_employers} icon={<Briefcase />} color="var(--accent-gold)" />
+            <StatCard title={t('active_jobs')} value={data.open_jobs} icon={<FileText />} color="#a855f7" />
+            <StatCard title={t('stat_pending_workers')} value={data.pending_workers} icon={<AlertTriangle />} color="#f59e0b" />
+            <StatCard title={t('stat_total_applications')} value={data.total_applications} icon={<FileText />} color="#06b6d4" />
+            <StatCard title={t('stat_notifications_sent')} value={data.total_notifications} icon={<Bell />} color="#ef4444" />
           </div>
         );
 
@@ -302,12 +304,12 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>ID</th>
-                  <th style={{ padding: '16px' }}>Email</th>
-                  <th style={{ padding: '16px' }}>Role</th>
-                  <th style={{ padding: '16px' }}>Status</th>
-                  <th style={{ padding: '16px' }}>Created At</th>
-                  <th style={{ padding: '16px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '16px' }}>{t('id')}</th>
+                  <th style={{ padding: '16px' }}>{t('email')}</th>
+                  <th style={{ padding: '16px' }}>{t('role')}</th>
+                  <th style={{ padding: '16px' }}>{t('status')}</th>
+                  <th style={{ padding: '16px' }}>{t('created_at')}</th>
+                  <th style={{ padding: '16px', textAlign: 'right' }}>{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -316,10 +318,10 @@ const AdminDashboard = () => {
                     <td style={{ padding: '16px' }}>{u.id}</td>
                     <td style={{ padding: '16px' }}>{u.email}</td>
                     <td style={{ padding: '16px', textTransform: 'capitalize' }}>
-                      <Badge type={u.role === 'employer' ? 'gold' : 'emerald'}>{u.role}</Badge>
+                      <Badge type={u.role === 'employer' ? 'gold' : 'emerald'}>{t(u.role)}</Badge>
                     </td>
                     <td style={{ padding: '16px', textTransform: 'capitalize' }}>
-                      <Badge type={u.status === 'active' ? 'emerald' : u.status === 'suspended' ? 'gold' : 'error'}>{u.status}</Badge>
+                      <Badge type={u.status === 'active' ? 'emerald' : u.status === 'suspended' ? 'gold' : 'error'}>{t(u.status)}</Badge>
                     </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td style={{ padding: '16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -335,14 +337,14 @@ const AdminDashboard = () => {
                           outline: 'none'
                         }}
                       >
-                        <option value="active">Active</option>
-                        <option value="suspended">Suspended</option>
-                        <option value="blocked">Blocked</option>
+                        <option value="active">{t('active')}</option>
+                        <option value="suspended">{t('suspended')}</option>
+                        <option value="blocked">{t('blocked')}</option>
                       </select>
-                      <button onClick={() => handleResetUserPassword(u.id)} style={{ color: 'var(--accent-emerald)', padding: '8px' }} title="Reset Password">
+                      <button onClick={() => handleResetUserPassword(u.id)} style={{ color: 'var(--accent-emerald)', padding: '8px' }} title={t('reset_password')}>
                         <Lock size={18} />
                       </button>
-                      <button onClick={() => handleDelete('user', u.id)} style={{ color: '#ef4444', padding: '8px' }} title="Delete">
+                      <button onClick={() => handleDelete('user', u.id)} style={{ color: '#ef4444', padding: '8px' }} title={t('delete')}>
                         <Trash2 size={18} />
                       </button>
                     </td>
@@ -359,12 +361,12 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>ID</th>
-                  <th style={{ padding: '16px' }}>Name & Email</th>
-                  <th style={{ padding: '16px' }}>Location</th>
-                  <th style={{ padding: '16px' }}>Status</th>
-                  <th style={{ padding: '16px' }}>Availability</th>
-                  <th style={{ padding: '16px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '16px' }}>{t('id')}</th>
+                  <th style={{ padding: '16px' }}>{t('name_email')}</th>
+                  <th style={{ padding: '16px' }}>{t('location')}</th>
+                  <th style={{ padding: '16px' }}>{t('status')}</th>
+                  <th style={{ padding: '16px' }}>{t('availability')}</th>
+                  <th style={{ padding: '16px', textAlign: 'right' }}>{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -378,7 +380,7 @@ const AdminDashboard = () => {
                     <td style={{ padding: '16px' }}>{w.location || '—'}</td>
                     <td style={{ padding: '16px' }}>
                       <Badge type={w.status === 'available' ? 'emerald' : w.status === 'hired' ? 'gold' : w.status === 'fired' ? 'error' : 'muted'}>
-                        {w.status}
+                        {t(w.status)}
                       </Badge>
                     </td>
                     <td style={{ padding: '16px' }}>
@@ -395,9 +397,9 @@ const AdminDashboard = () => {
                           fontSize: '0.85rem'
                         }}
                       >
-                        <option value="available">Available</option>
-                        <option value="busy">Busy</option>
-                        <option value="unavailable">Unavailable</option>
+                        <option value="available">{t('available')}</option>
+                        <option value="busy">{t('busy')}</option>
+                        <option value="unavailable">{t('unavailable')}</option>
                       </select>
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -414,14 +416,14 @@ const AdminDashboard = () => {
                           fontSize: '0.85rem'
                         }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="completed">Completed</option>
-                        <option value="hired">Hired</option>
-                        <option value="fired">Fired</option>
-                        <option value="suspended">Suspended</option>
+                        <option value="pending">{t('pending')}</option>
+                        <option value="completed">{t('completed')}</option>
+                        <option value="hired">{t('hired')}</option>
+                        <option value="fired">{t('fired')}</option>
+                        <option value="suspended">{t('suspended')}</option>
                       </select>
-                      <button onClick={() => handleResetUserPassword(w.id)} style={{ color: 'var(--text-main)', padding: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', border: '1px solid var(--border-color)' }} title="Reset Password">
-                        Reset Password
+                      <button onClick={() => handleResetUserPassword(w.id)} style={{ color: 'var(--text-main)', padding: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', border: '1px solid var(--border-color)' }} title={t('reset_password')}>
+                        {t('reset_password')}
                       </button>
                     </td>
                   </tr>
@@ -437,10 +439,10 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>ID</th>
-                  <th style={{ padding: '16px' }}>Email</th>
-                  <th style={{ padding: '16px' }}>Phone</th>
-                  <th style={{ padding: '16px' }}>Location</th>
+                  <th style={{ padding: '16px' }}>{t('id')}</th>
+                  <th style={{ padding: '16px' }}>{t('email')}</th>
+                  <th style={{ padding: '16px' }}>{t('phone')}</th>
+                  <th style={{ padding: '16px' }}>{t('location')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -463,12 +465,12 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>ID</th>
-                  <th style={{ padding: '16px' }}>Job Title</th>
-                  <th style={{ padding: '16px' }}>Employer Email</th>
-                  <th style={{ padding: '16px' }}>Applicants</th>
-                  <th style={{ padding: '16px' }}>Status</th>
-                  <th style={{ padding: '16px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '16px' }}>{t('id')}</th>
+                  <th style={{ padding: '16px' }}>{t('job_title')}</th>
+                  <th style={{ padding: '16px' }}>{t('employer_email')}</th>
+                  <th style={{ padding: '16px' }}>{t('applicants')}</th>
+                  <th style={{ padding: '16px' }}>{t('status')}</th>
+                  <th style={{ padding: '16px', textAlign: 'right' }}>{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -479,7 +481,7 @@ const AdminDashboard = () => {
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{j.employer_email}</td>
                     <td style={{ padding: '16px' }}>{j.applicant_count}</td>
                     <td style={{ padding: '16px' }}>
-                      <Badge type={j.status === 'open' ? 'emerald' : 'muted'}>{j.status}</Badge>
+                      <Badge type={j.status === 'open' ? 'emerald' : 'muted'}>{t(j.status)}</Badge>
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <button onClick={() => handleDelete('job', j.id)} style={{ color: '#ef4444', padding: '8px' }}>
@@ -499,11 +501,11 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>ID</th>
-                  <th style={{ padding: '16px' }}>Job Title</th>
-                  <th style={{ padding: '16px' }}>Worker</th>
-                  <th style={{ padding: '16px' }}>Status</th>
-                  <th style={{ padding: '16px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '16px' }}>{t('id')}</th>
+                  <th style={{ padding: '16px' }}>{t('job_title')}</th>
+                  <th style={{ padding: '16px' }}>{t('worker')}</th>
+                  <th style={{ padding: '16px' }}>{t('status')}</th>
+                  <th style={{ padding: '16px', textAlign: 'right' }}>{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -517,7 +519,7 @@ const AdminDashboard = () => {
                     </td>
                     <td style={{ padding: '16px' }}>
                       <Badge type={a.status === 'accepted' ? 'emerald' : a.status === 'declined' ? 'error' : 'gold'}>
-                        {a.status}
+                        {t(a.status)}
                       </Badge>
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -533,9 +535,9 @@ const AdminDashboard = () => {
                           outline: 'none'
                         }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="accepted">Accepted</option>
-                        <option value="declined">Declined</option>
+                        <option value="pending">{t('pending')}</option>
+                        <option value="accepted">{t('accepted')}</option>
+                        <option value="declined">{t('declined')}</option>
                       </select>
                     </td>
                   </tr>
@@ -551,12 +553,12 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>ID</th>
-                  <th style={{ padding: '16px' }}>User Email</th>
-                  <th style={{ padding: '16px' }}>Type</th>
-                  <th style={{ padding: '16px' }}>Message</th>
-                  <th style={{ padding: '16px' }}>Read</th>
-                  <th style={{ padding: '16px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '16px' }}>{t('id')}</th>
+                  <th style={{ padding: '16px' }}>{t('user_email')}</th>
+                  <th style={{ padding: '16px' }}>{t('type')}</th>
+                  <th style={{ padding: '16px' }}>{t('message')}</th>
+                  <th style={{ padding: '16px' }}>{t('read')}</th>
+                  <th style={{ padding: '16px', textAlign: 'right' }}>{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -564,10 +566,10 @@ const AdminDashboard = () => {
                   <tr key={n.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '16px' }}>{n.id}</td>
                     <td style={{ padding: '16px' }}>{n.user_email}</td>
-                    <td style={{ padding: '16px', textTransform: 'capitalize' }}>{n.type.replace('_', ' ')}</td>
+                    <td style={{ padding: '16px', textTransform: 'capitalize' }}>{n.type === 'job_request' ? t('job_request_type') : n.type === 'request_response' ? t('response_type') : n.type === 'new_application' ? t('application_type') : n.type.replace('_', ' ')}</td>
                     <td style={{ padding: '16px', maxWidth: '300px' }}>{n.message}</td>
                     <td style={{ padding: '16px' }}>
-                      {n.is_read ? <CheckCircle size={18} color="var(--accent-emerald)" /> : <span style={{ color: 'var(--text-muted)' }}>No</span>}
+                      {n.is_read ? <CheckCircle size={18} color="var(--accent-emerald)" /> : <span style={{ color: 'var(--text-muted)' }}>{t('no')}</span>}
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <button onClick={() => handleDelete('notification', n.id)} style={{ color: '#ef4444', padding: '8px' }}>
@@ -587,11 +589,11 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '16px' }}>Timestamp</th>
-                  <th style={{ padding: '16px' }}>User</th>
-                  <th style={{ padding: '16px' }}>Action</th>
-                  <th style={{ padding: '16px' }}>Entity</th>
-                  <th style={{ padding: '16px' }}>IP / Details</th>
+                  <th style={{ padding: '16px' }}>{t('timestamp')}</th>
+                  <th style={{ padding: '16px' }}>{t('user')}</th>
+                  <th style={{ padding: '16px' }}>{t('action')}</th>
+                  <th style={{ padding: '16px' }}>{t('entity')}</th>
+                  <th style={{ padding: '16px' }}>{t('ip_details')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -607,7 +609,7 @@ const AdminDashboard = () => {
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                       <td style={{ padding: '16px' }}>
-                        <div style={{ fontWeight: 600 }}>{log.user_email || 'anonymous'}</div>
+                        <div style={{ fontWeight: 600 }}>{log.user_email || t('anonymous')}</div>
                         {log.user_id && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {log.user_id}</div>}
                       </td>
                       <td style={{ padding: '16px' }}>
@@ -616,7 +618,7 @@ const AdminDashboard = () => {
                       <td style={{ padding: '16px', textTransform: 'capitalize' }}>{log.entity || '—'}</td>
                       <td style={{ padding: '16px' }}>
                         <div>{log.detail}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IP: {log.ip || 'unknown'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IP: {log.ip || t('unknown')}</div>
                       </td>
                     </tr>
                   );
@@ -632,11 +634,11 @@ const AdminDashboard = () => {
             {/* Platform Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Globe size={20} style={{ color: 'var(--accent-emerald)' }} /> Platform Settings
+                <Globe size={20} style={{ color: 'var(--accent-emerald)' }} /> {t('platform_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Site Name</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('site_name')}</label>
                   <input
                     type="text"
                     className="input-field"
@@ -645,7 +647,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Site Description</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('site_description')}</label>
                   <textarea
                     className="input-field"
                     value={settings.site_description}
@@ -662,11 +664,11 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="maintenance_mode" style={{ margin: 0, cursor: 'pointer' }}>
-                    Maintenance Mode (Disable access for non-admins)
+                    {t('maintenance_mode_label')}
                   </label>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Maintenance Message</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('maintenance_message')}</label>
                   <textarea
                     className="input-field"
                     value={settings.maintenance_message}
@@ -680,7 +682,7 @@ const AdminDashboard = () => {
             {/* Registration Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={20} style={{ color: 'var(--accent-gold)' }} /> Registration Settings
+                <Users size={20} style={{ color: 'var(--accent-gold)' }} /> {t('registration_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -692,11 +694,11 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="allow_registration" style={{ margin: 0, cursor: 'pointer' }}>
-                    Allow New User Registration
+                    {t('allow_registration_label')}
                   </label>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Workers per Employer</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('max_workers_per_employer')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -715,7 +717,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="require_worker_verification" style={{ margin: 0, cursor: 'pointer' }}>
-                    Require Worker Verification (ID documents)
+                    {t('require_worker_verification_label')}
                   </label>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -727,7 +729,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="require_employer_verification" style={{ margin: 0, cursor: 'pointer' }}>
-                    Require Employer Verification
+                    {t('require_employer_verification_label')}
                   </label>
                 </div>
               </div>
@@ -736,7 +738,7 @@ const AdminDashboard = () => {
             {/* Email/Notification Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Mail size={20} style={{ color: '#3b82f6' }} /> Email & Notification Settings
+                <Mail size={20} style={{ color: '#3b82f6' }} /> {t('email_notification_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -748,7 +750,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="email_notifications_enabled" style={{ margin: 0, cursor: 'pointer' }}>
-                    Enable Email Notifications
+                    {t('enable_email_notifications')}
                   </label>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -760,7 +762,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="welcome_email_enabled" style={{ margin: 0, cursor: 'pointer' }}>
-                    Send Welcome Email on Registration
+                    {t('welcome_email_label')}
                   </label>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -772,11 +774,11 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="job_alert_email_enabled" style={{ margin: 0, cursor: 'pointer' }}>
-                    Send Job Alert Emails
+                    {t('job_alert_email_label')}
                   </label>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Admin Notification Email</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('admin_notification_email')}</label>
                   <input
                     type="email"
                     className="input-field"
@@ -787,10 +789,10 @@ const AdminDashboard = () => {
 
                 {/* SMTP Configuration */}
                 <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
-                  <h4 style={{ marginBottom: '16px', fontSize: '1rem', color: 'var(--text-secondary)' }}>SMTP Configuration</h4>
+                  <h4 style={{ marginBottom: '16px', fontSize: '1rem', color: 'var(--text-secondary)' }}>{t('smtp_configuration')}</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Host</label>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('smtp_host')}</label>
                       <input
                         type="text"
                         className="input-field"
@@ -800,7 +802,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Port</label>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('smtp_port')}</label>
                       <input
                         type="number"
                         className="input-field"
@@ -811,7 +813,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div style={{ marginTop: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Username</label>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('smtp_username')}</label>
                     <input
                       type="text"
                       className="input-field"
@@ -821,7 +823,7 @@ const AdminDashboard = () => {
                     />
                   </div>
                   <div style={{ marginTop: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>SMTP Password</label>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('smtp_password')}</label>
                     <PasswordInput
                       placeholder="Your SMTP password or app password"
                       value={settings.smtp_password}
@@ -837,12 +839,12 @@ const AdminDashboard = () => {
                       style={{ width: '18px', height: '18px' }}
                     />
                     <label htmlFor="smtp_secure" style={{ margin: 0, cursor: 'pointer' }}>
-                      Use SSL/TLS (Secure connection)
+                      {t('smtp_secure_label')}
                     </label>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>From Email</label>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('from_email')}</label>
                       <input
                         type="email"
                         className="input-field"
@@ -852,7 +854,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>From Name</label>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('from_name')}</label>
                       <input
                         type="text"
                         className="input-field"
@@ -864,7 +866,7 @@ const AdminDashboard = () => {
                   </div>
                   <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      <strong>Tip:</strong> For Gmail, use an App Password instead of your regular password. Enable 2FA and generate an App Password in your Google Account settings.
+                      <strong>{t('gmail_tip')}</strong> {t('gmail_tip_body')}
                     </p>
                   </div>
                 </div>
@@ -874,7 +876,7 @@ const AdminDashboard = () => {
             {/* Content Moderation Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldCheck size={20} style={{ color: '#a855f7' }} /> Content Moderation Settings
+                <ShieldCheck size={20} style={{ color: '#a855f7' }} /> {t('content_moderation_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -886,7 +888,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="auto_moderate_jobs" style={{ margin: 0, cursor: 'pointer' }}>
-                    Auto-Moderate Job Postings
+                    {t('auto_moderate_jobs_label')}
                   </label>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -898,7 +900,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="require_job_approval" style={{ margin: 0, cursor: 'pointer' }}>
-                    Require Admin Approval for Jobs
+                    {t('require_job_approval_label')}
                   </label>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -910,11 +912,11 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="profanity_filter_enabled" style={{ margin: 0, cursor: 'pointer' }}>
-                    Enable Profanity Filter
+                    {t('profanity_filter_label')}
                   </label>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Job Description Length</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('max_job_description_length')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -930,7 +932,7 @@ const AdminDashboard = () => {
             {/* API/Rate Limit Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Zap size={20} style={{ color: '#f59e0b' }} /> API & Rate Limit Settings
+                <Zap size={20} style={{ color: '#f59e0b' }} /> {t('api_rate_limit_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -942,11 +944,11 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="api_rate_limit_enabled" style={{ margin: 0, cursor: 'pointer' }}>
-                    Enable API Rate Limiting
+                    {t('enable_api_rate_limit')}
                   </label>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Rate Limit Window (seconds)</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('rate_limit_window')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -957,7 +959,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Requests per Window</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('max_requests_window')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -973,11 +975,11 @@ const AdminDashboard = () => {
             {/* User Management Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <SettingsIcon size={20} style={{ color: '#06b6d4' }} /> User Management Settings
+                <SettingsIcon size={20} style={{ color: '#06b6d4' }} /> {t('user_management_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Session Timeout (minutes)</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('session_timeout')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -988,7 +990,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Password Min Length</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('password_min_length')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -1007,11 +1009,11 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="password_require_special_char" style={{ margin: 0, cursor: 'pointer' }}>
-                    Require Special Characters in Password
+                    {t('require_special_char_label')}
                   </label>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Account Inactivity Days (before suspension)</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('inactivity_days')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -1027,11 +1029,11 @@ const AdminDashboard = () => {
             {/* Job Posting Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Briefcase size={20} style={{ color: '#10b981' }} /> Job Posting Settings
+                <Briefcase size={20} style={{ color: '#10b981' }} /> {t('job_posting_settings')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Max Active Jobs per Employer</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('max_active_jobs')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -1042,7 +1044,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Job Expiry Days</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('job_expiry_days')}</label>
                   <input
                     type="number"
                     className="input-field"
@@ -1061,7 +1063,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="allow_job_editing" style={{ margin: 0, cursor: 'pointer' }}>
-                    Allow Job Editing
+                    {t('allow_job_editing_label')}
                   </label>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
@@ -1073,7 +1075,7 @@ const AdminDashboard = () => {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="allow_job_deletion" style={{ margin: 0, cursor: 'pointer' }}>
-                    Allow Job Deletion
+                    {t('allow_job_deletion_label')}
                   </label>
                 </div>
               </div>
@@ -1082,14 +1084,14 @@ const AdminDashboard = () => {
             {/* Security Settings */}
             <div className="glass-panel" style={{ padding: '32px' }}>
               <h3 style={{ marginBottom: '24px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lock size={20} style={{ color: '#ef4444' }} /> Security Settings
+                <Lock size={20} style={{ color: '#ef4444' }} /> {t('security_settings')}
               </h3>
               <form onSubmit={handleChangeAdminPassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>New Admin Password</label>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('new_admin_password')}</label>
                   <PasswordInput
                     name="newPassword"
-                    placeholder="Enter new password (min 8 chars)"
+                    placeholder={t('new_password_placeholder')}
                     required
                     minLength={8}
                   />
@@ -1101,7 +1103,7 @@ const AdminDashboard = () => {
                   className="btn-premium"
                   style={{ alignSelf: 'flex-start', padding: '10px 24px' }}
                 >
-                  Change Password
+                  {t('change_password')}
                 </motion.button>
               </form>
             </div>
@@ -1123,21 +1125,21 @@ const AdminDashboard = () => {
             <Shield size={24} color="#ef4444" />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Admin <span style={{ color: '#ef4444' }}>Panel</span></h2>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Superuser Access</div>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('admin')} <span style={{ color: '#ef4444' }}>{t('panel')}</span></h2>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('superuser_access')}</div>
           </div>
         </div>
 
         <div style={{ padding: '20px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <SidebarItem icon={<LayoutDashboard />} label="Overview" active={activeTab === 'overview'} onClick={() => changeTab('overview')} />
-          <SidebarItem icon={<Users />} label="Users" active={activeTab === 'users'} onClick={() => changeTab('users')} />
-          <SidebarItem icon={<Briefcase />} label="Workers" active={activeTab === 'workers'} onClick={() => changeTab('workers')} />
-          <SidebarItem icon={<Users />} label="Employers" active={activeTab === 'employers'} onClick={() => changeTab('employers')} />
-          <SidebarItem icon={<FileText />} label="Jobs" active={activeTab === 'jobs'} onClick={() => changeTab('jobs')} />
-          <SidebarItem icon={<CheckCircle />} label="Applications" active={activeTab === 'applications'} onClick={() => changeTab('applications')} />
-          <SidebarItem icon={<Bell />} label="Notifications" active={activeTab === 'notifications'} onClick={() => changeTab('notifications')} />
-          <SidebarItem icon={<Activity />} label="Activity Logs" active={activeTab === 'logs'} onClick={() => changeTab('logs')} />
-          <SidebarItem icon={<Lock />} label="Settings" active={activeTab === 'settings'} onClick={() => changeTab('settings')} />
+          <SidebarItem icon={<LayoutDashboard />} label={t('overview')} active={activeTab === 'overview'} onClick={() => changeTab('overview')} />
+          <SidebarItem icon={<Users />} label={t('users')} active={activeTab === 'users'} onClick={() => changeTab('users')} />
+          <SidebarItem icon={<Briefcase />} label={t('workers')} active={activeTab === 'workers'} onClick={() => changeTab('workers')} />
+          <SidebarItem icon={<Users />} label={t('employers')} active={activeTab === 'employers'} onClick={() => changeTab('employers')} />
+          <SidebarItem icon={<FileText />} label={t('jobs')} active={activeTab === 'jobs'} onClick={() => changeTab('jobs')} />
+          <SidebarItem icon={<CheckCircle />} label={t('applications')} active={activeTab === 'applications'} onClick={() => changeTab('applications')} />
+          <SidebarItem icon={<Bell />} label={t('notifications')} active={activeTab === 'notifications'} onClick={() => changeTab('notifications')} />
+          <SidebarItem icon={<Activity />} label={t('activity_logs')} active={activeTab === 'logs'} onClick={() => changeTab('logs')} />
+          <SidebarItem icon={<Lock />} label={t('settings')} active={activeTab === 'settings'} onClick={() => changeTab('settings')} />
         </div>
 
         <div style={{ padding: '20px', borderTop: '1px solid var(--border-color)' }}>
@@ -1145,7 +1147,7 @@ const AdminDashboard = () => {
             onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '8px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', fontWeight: 600 }}
           >
-            <LogOut size={18} /> Logout
+            <LogOut size={18} /> {t('logout')}
           </button>
         </div>
       </div>
@@ -1153,10 +1155,10 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '8px', textTransform: 'capitalize' }}>
-          {activeTab}
+          {t(activeTab)}
         </h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-          Manage platform {activeTab} and monitor activity.
+          {t('manage_platform').replace('{tab}', t(activeTab))}
         </p>
 
         <AnimatePresence mode="wait">

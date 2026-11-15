@@ -76,9 +76,9 @@ const Landing = () => {
         style={{ maxWidth: '1000px', width: '100%', zIndex: 1, marginBottom: '80px' }}
       >
         {[
-          { icon: <ShieldCheck size={32} color="var(--accent-emerald)" />, title: 'Fully Vetted', desc: 'Every professional undergoes rigorous background and identity checks.' },
-          { icon: <Star size={32} color="var(--accent-gold)" />, title: 'Elite Talent', desc: 'Only highly experienced candidates with proven track records.' },
-          { icon: <Users size={32} color="#fff" />, title: 'Direct Connection', desc: 'Seamlessly communicate and hire directly through our secure platform.' }
+          { icon: <ShieldCheck size={32} color="var(--accent-emerald)" />, title: t('feat_vetted_title'), desc: t('feat_vetted_desc') },
+          { icon: <Star size={32} color="var(--accent-gold)" />, title: t('feat_talent_title'), desc: t('feat_talent_desc') },
+          { icon: <Users size={32} color="#fff" />, title: t('feat_connection_title'), desc: t('feat_connection_desc') }
         ].map((feature, idx) => (
           <div key={idx} className="glass-panel" style={{ padding: '28px', textAlign: 'center' }}>
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>{feature.icon}</div>
@@ -95,18 +95,18 @@ const Landing = () => {
         transition={{ delay: 0.8, duration: 0.8 }}
         style={{ zIndex: 1, maxWidth: '1200px', width: '100%', textAlign: 'center' }}
       >
-        <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '12px' }}>Choose Your Plan</h2>
+        <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '12px' }}>{t('choose_your_plan')}</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '48px' }}>
-          Flexible pricing for employers and workers
+          {t('pricing_subtitle')}
         </p>
 
         <div className="responsive-grid-3" style={{ gap: '24px' }}>
           {/* Basic Plan */}
           <div className="glass-panel" style={{ padding: '32px', textAlign: 'left', position: 'relative' }}>
             <div style={{ marginBottom: '24px' }}>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Basic</div>
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{t('basic')}</div>
               <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                Free
+                {t('free')}
               </div>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
@@ -118,7 +118,7 @@ const Landing = () => {
               ].map((item, idx) => (
                 <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                   <Check size={18} color="var(--accent-emerald)" />
-                  {item}
+                  {t(item)}
                 </li>
               ))}
             </ul>
@@ -129,21 +129,21 @@ const Landing = () => {
               style={{ width: '100%', padding: '14px' }}
               onClick={() => navigate('/register-employer')}
             >
-              Get Started
+              {t('get_started')}
             </motion.button>
           </div>
 
           {/* Premium Plan */}
           <div className="glass-panel" style={{ padding: '32px', textAlign: 'left', position: 'relative', border: '2px solid var(--accent-gold)', transform: 'scale(1.05)' }}>
             <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--accent-gold)', color: '#000', padding: '4px 16px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700 }}>
-              MOST POPULAR
+              {t('most_popular')}
             </div>
             <div style={{ marginBottom: '24px' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Crown size={16} /> Premium
+                <Crown size={16} /> {t('premium')}
               </div>
               <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                $49<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 400 }}>/month</span>
+                $49<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 400 }}>{t('per_month')}</span>
               </div>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
@@ -157,7 +157,7 @@ const Landing = () => {
               ].map((item, idx) => (
                 <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                   <Check size={18} color="var(--accent-gold)" />
-                  {item}
+                  {t(item)}
                 </li>
               ))}
             </ul>
@@ -168,16 +168,16 @@ const Landing = () => {
               style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000' }}
               onClick={() => navigate('/register-employer')}
             >
-              Start Free Trial
+              {t('start_free_trial')}
             </motion.button>
           </div>
 
           {/* Enterprise Plan */}
           <div className="glass-panel" style={{ padding: '32px', textAlign: 'left', position: 'relative' }}>
             <div style={{ marginBottom: '24px' }}>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Enterprise</div>
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{t('enterprise')}</div>
               <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                $199<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 400 }}>/month</span>
+                $199<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 400 }}>{t('per_month')}</span>
               </div>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
@@ -191,7 +191,7 @@ const Landing = () => {
               ].map((item, idx) => (
                 <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                   <Check size={18} color="var(--accent-emerald)" />
-                  {item}
+                  {t(item)}
                 </li>
               ))}
             </ul>
@@ -202,7 +202,7 @@ const Landing = () => {
               style={{ width: '100%', padding: '14px' }}
               onClick={() => navigate('/register-employer')}
             >
-              Contact Sales
+              {t('contact_sales')}
             </motion.button>
           </div>
         </div>
@@ -210,12 +210,12 @@ const Landing = () => {
         {/* Worker Pricing */}
         <div style={{ marginTop: '64px', padding: '32px', background: 'var(--bg-elevated)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
           <h3 style={{ fontSize: '1.5rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
-            <Briefcase size={24} color="var(--accent-emerald)" /> Worker Plans
+            <Briefcase size={24} color="var(--accent-emerald)" /> {t('worker_plans')}
           </h3>
           <div className="responsive-grid-2" style={{ gap: '24px' }}>
             <div className="glass-panel" style={{ padding: '24px', textAlign: 'left' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px' }}>Free Profile</div>
-              <div style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Create your profile and get discovered</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px' }}>{t('free_profile')}</div>
+              <div style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>{t('free_profile_desc')}</div>
               <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
                 {[
                   'Professional profile',
@@ -225,7 +225,7 @@ const Landing = () => {
                 ].map((item, idx) => (
                   <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                     <Check size={16} color="var(--accent-emerald)" />
-                    {item}
+                    {t(item)}
                   </li>
                 ))}
               </ul>
@@ -236,12 +236,12 @@ const Landing = () => {
                 style={{ width: '100%', padding: '12px' }}
                 onClick={() => navigate('/register-worker')}
               >
-                Create Profile
+                {t('create_profile')}
               </motion.button>
             </div>
             <div className="glass-panel" style={{ padding: '24px', textAlign: 'left', border: '2px solid var(--accent-emerald)' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px', color: 'var(--accent-emerald)' }}>Pro Worker - $19/mo</div>
-              <div style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Boost your visibility and get more jobs</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px', color: 'var(--accent-emerald)' }}>{t('pro_worker')}</div>
+              <div style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>{t('pro_worker_desc')}</div>
               <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
                 {[
                   'Featured in search results',
@@ -252,7 +252,7 @@ const Landing = () => {
                 ].map((item, idx) => (
                   <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                     <Check size={16} color="var(--accent-emerald)" />
-                    {item}
+                    {t(item)}
                   </li>
                 ))}
               </ul>
@@ -263,7 +263,7 @@ const Landing = () => {
                 style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #047857 100%)', color: '#fff' }}
                 onClick={() => navigate('/register-worker')}
               >
-                Upgrade to Pro
+                {t('upgrade_to_pro')}
               </motion.button>
             </div>
           </div>
@@ -278,7 +278,7 @@ const Landing = () => {
             <div>
               <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-gold)' }}>Ishimo</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '20px' }}>
-                The world's premier household professional network. Connecting elite workers with discerning employers since 2024.
+                {t('footer_tagline')}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
@@ -295,13 +295,13 @@ const Landing = () => {
 
             {/* Quick Links */}
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Quick Links</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>{t('quick_links')}</h3>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {[
-                  { label: 'Find Workers', action: () => navigate('/register-employer') },
-                  { label: 'Find Jobs', action: () => navigate('/register-worker') },
-                  { label: 'About Us', action: () => {} },
-                  { label: 'How It Works', action: () => {} }
+                  { label: t('find_workers'), action: () => navigate('/register-employer') },
+                  { label: t('find_jobs'), action: () => navigate('/register-worker') },
+                  { label: t('about_us'), action: () => {} },
+                  { label: t('how_it_works'), action: () => {} }
                 ].map((link, idx) => (
                   <li key={idx} style={{ marginBottom: '12px' }}>
                     <span
@@ -319,13 +319,13 @@ const Landing = () => {
 
             {/* Legal */}
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Legal</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>{t('legal')}</h3>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {[
-                  { label: 'Privacy Policy', action: () => {} },
-                  { label: 'Terms of Service', action: () => {} },
-                  { label: 'Cookie Policy', action: () => {} },
-                  { label: 'Contact Support', action: () => {} }
+                  { label: t('privacy_policy'), action: () => {} },
+                  { label: t('terms_of_service'), action: () => {} },
+                  { label: t('cookie_policy'), action: () => {} },
+                  { label: t('contact_support'), action: () => {} }
                 ].map((link, idx) => (
                   <li key={idx} style={{ marginBottom: '12px' }}>
                     <span
@@ -345,12 +345,12 @@ const Landing = () => {
           {/* Bottom Bar */}
           <div style={{ paddingTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              © 2024 Ishimo. All rights reserved.
+              {t('rights_reserved')}
             </p>
             <div style={{ display: 'flex', gap: '24px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Privacy</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Terms</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Cookies</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>{t('privacy')}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>{t('terms')}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>{t('cookies')}</span>
             </div>
           </div>
         </div>

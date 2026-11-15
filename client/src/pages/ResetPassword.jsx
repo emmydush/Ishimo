@@ -3,12 +3,14 @@ import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL } from '../config/api';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   
@@ -20,25 +22,25 @@ const ResetPassword = () => {
   useEffect(() => {
     if (!token) {
       setTokenValid(false);
-      showToast('Invalid reset link', 'error');
+      showToast(t('invalid_reset_link'), 'error');
     }
-  }, [token, showToast]);
+  }, [token, showToast, t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!token) {
-      showToast('Invalid reset link', 'error');
+      showToast(t('invalid_reset_link'), 'error');
       return;
     }
 
     if (formData.newPassword.length < 8) {
-      showToast('Password must be at least 8 characters', 'error');
+      showToast(t('password_min_error'), 'error');
       return;
     }
 
     if (formData.newPassword !== formData.confirmPassword) {
-      showToast('Passwords do not match', 'error');
+      showToast(t('passwords_do_not_match'), 'error');
       return;
     }
 
@@ -55,10 +57,10 @@ const ResetPassword = () => {
         setSuccess(true);
         showToast(data.message, 'success');
       } else {
-        showToast(data.error || 'Failed to reset password', 'error');
+        showToast(data.error || t('err_reset_password_link'), 'error');
       }
     } catch {
-      showToast('Cannot connect to the server', 'error');
+      showToast(t('cannot_connect_server'), 'error');
     } finally {
       setLoading(false);
     }
@@ -79,9 +81,9 @@ const ResetPassword = () => {
           <div className="flex-center" style={{ width: '64px', height: '64px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', margin: '0 auto 24px', color: '#ef4444' }}>
             <XCircle size={32} />
           </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Invalid Reset Link</h2>
+          <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>{t('invalid_reset_link_title')}</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-            This password reset link is invalid or has expired. Please request a new one.
+            {t('invalid_reset_link_msg')}
           </p>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -90,7 +92,7 @@ const ResetPassword = () => {
             style={{ width: '100%', fontSize: '1.1rem' }}
             onClick={() => navigate('/forgot-password')}
           >
-            Request New Link
+            {t('request_new_link')}
           </motion.button>
         </motion.div>
       </div>
@@ -112,9 +114,9 @@ const ResetPassword = () => {
           <div className="flex-center" style={{ width: '64px', height: '64px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', margin: '0 auto 24px', color: 'var(--accent-emerald)' }}>
             <CheckCircle size={32} />
           </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Password Reset Successful</h2>
+          <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>{t('reset_success_title')}</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-            Your password has been successfully reset. You can now log in with your new password.
+            {t('reset_success_msg')}
           </p>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -123,7 +125,7 @@ const ResetPassword = () => {
             style={{ width: '100%', fontSize: '1.1rem' }}
             onClick={() => navigate('/login')}
           >
-            Go to Login
+            {t('go_to_login')}
           </motion.button>
         </motion.div>
       </div>
@@ -148,7 +150,7 @@ const ResetPassword = () => {
             onClick={() => navigate('/login')}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.9rem' }}
           >
-            <ArrowLeft size={16} /> Back to Login
+            <ArrowLeft size={16} /> {t('back_to_login')}
           </motion.button>
         </div>
 
@@ -156,15 +158,15 @@ const ResetPassword = () => {
           <div className="flex-center" style={{ width: '56px', height: '56px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '16px', margin: '0 auto 16px', color: 'var(--accent-gold)' }}>
             <Lock size={28} />
           </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Reset Password</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Enter your new password below</p>
+          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>{t('reset_password')}</h2>
+          <p style={{ color: 'var(--text-muted)' }}>{t('enter_new_password_below')}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="input-group" style={{ marginBottom: '20px' }}>
-            <label className="input-label">New Password</label>
+            <label className="input-label">{t('new_password')}</label>
             <PasswordInput
-              placeholder="Enter new password (min 8 characters)"
+              placeholder={t('new_password_placeholder_chars')}
               required
               minLength={8}
               value={formData.newPassword}
@@ -174,9 +176,9 @@ const ResetPassword = () => {
           </div>
 
           <div className="input-group" style={{ marginBottom: '32px' }}>
-            <label className="input-label">Confirm New Password</label>
+            <label className="input-label">{t('confirm_new_password')}</label>
             <PasswordInput
-              placeholder="Confirm new password"
+              placeholder={t('confirm_new_password_placeholder')}
               required
               minLength={8}
               value={formData.confirmPassword}
@@ -193,7 +195,7 @@ const ResetPassword = () => {
             type="submit"
             disabled={loading}
           >
-            {loading ? 'Resetting...' : 'Reset Password'}
+            {loading ? t('resetting') : t('reset_password')}
           </motion.button>
         </form>
       </motion.div>

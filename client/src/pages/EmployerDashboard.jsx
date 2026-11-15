@@ -15,6 +15,8 @@ const EmployerDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ skill: '', location: '', availability: '' });
+  const [showFilters, setShowFilters] = useState(false);
 
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'workers'); // 'workers' or 'jobs'
   const [showBanner, setShowBanner] = useState(!!location.state?.newlyPosted);
@@ -70,7 +72,7 @@ const EmployerDashboard = () => {
 
   const handleRequestWorker = async (workerId) => {
     const employerId = localStorage.getItem('userId');
-    if (!employerId) return showToast('You must be logged in as an employer.', 'error');
+    if (!employerId) return showToast(t('err_login_required_employer'), 'error');
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/jobs/request`, {
@@ -80,12 +82,12 @@ const EmployerDashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        showToast('Job request sent successfully!', 'success');
+        showToast(t('request_sent_success'), 'success');
       } else {
-        showToast(data.error || 'Failed to send request', 'error');
+        showToast(data.error || t('err_send_request'), 'error');
       }
     } catch (err) {
-      showToast('Network error while sending request', 'error');
+      showToast(t('err_network_request'), 'error');
     }
   };
 
@@ -98,28 +100,28 @@ const EmployerDashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        showToast(`Application ${status} successfully!`, 'success');
+        showToast(t('application_updated').replace('{status}', t(status)), 'success');
         // Refresh applications
         const employerId = localStorage.getItem('userId');
         const resApps = await fetch(`${API_BASE_URL}/api/employer/${employerId}/applications`);
         const dataApps = await resApps.json();
         setJobApplications(dataApps);
       } else {
-        showToast(data.error || 'Failed to update status', 'error');
+        showToast(data.error || t('err_status_update'), 'error');
       }
     } catch (err) {
-      showToast('Network error while updating status', 'error');
+      showToast(t('err_network_status'), 'error');
     }
   };
 
   const handleRateWorker = async () => {
     if (!ratingWorker || ratingValue === 0) {
-      showToast('Please select a rating', 'error');
+      showToast(t('err_select_rating'), 'error');
       return;
     }
 
     const employerId = localStorage.getItem('userId');
-    if (!employerId) return showToast('You must be logged in', 'error');
+    if (!employerId) return showToast(t('err_login_required'), 'error');
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/worker/${ratingWorker.worker_id}/rating`, {
@@ -133,7 +135,7 @@ const EmployerDashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        showToast(data.message || 'Rating submitted successfully!', 'success');
+        showToast(data.message || t('rating_submitted_success'), 'success');
         setShowRatingModal(false);
         setRatingValue(0);
         setRatingComment('');
@@ -143,18 +145,28 @@ const EmployerDashboard = () => {
         const dataWorkers = await resWorkers.json();
         setWorkers(dataWorkers);
       } else {
-        showToast(data.error || 'Failed to submit rating', 'error');
+        showToast(data.error || t('err_submit_rating'), 'error');
       }
     } catch (err) {
-      showToast('Network error while submitting rating', 'error');
+      showToast(t('err_network_rating'), 'error');
     }
   };
 
-  const filteredWorkers = workers.filter(w => 
-    w.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    w.skills.join(' ').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const allSkills = [...new Set(workers.flatMap(w => w.skills || []))].sort();
+  const allLocations = [...new Set(workers.map(w => w.location).filter(Boolean))].sort();
+  const hasActiveFilters = filters.skill || filters.location || filters.availability;
+
+  const filteredWorkers = workers.filter(w => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q || 
+      w.name.toLowerCase().includes(q) || 
+      (w.skills || []).join(' ').toLowerCase().includes(q) ||
+      w.role.toLowerCase().includes(q);
+    const matchesSkill = !filters.skill || (w.skills || []).includes(filters.skill);
+    const matchesLocation = !filters.location || w.location === filters.location;
+    const matchesAvailability = !filters.availability || w.availability === filters.availability;
+    return matchesSearch && matchesSkill && matchesLocation && matchesAvailability;
+  });
 
   return (
     <div className="app-layout">
@@ -163,8 +175,8 @@ const EmployerDashboard = () => {
       <div className="main-content">
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', marginBottom: '6px' }}>Employer Dashboard</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Find elite talent or post a job to let them find you.</p>
+            <h1 style={{ fontSize: '2rem', marginBottom: '6px' }}>{t('employer_dashboard_title')}</h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('employer_dashboard_subtitle')}</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -195,7 +207,7 @@ const EmployerDashboard = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <CheckCircle size={20} />
-              <span>Your job posting has been published successfully and is now live for workers!</span>
+              <span>{t('job_published_banner')}</span>
             </div>
             <button
               onClick={() => setShowBanner(false)}
@@ -242,7 +254,7 @@ const EmployerDashboard = () => {
 
         {activeTab === 'workers' && (
           <>
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
                 <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 <input 
@@ -254,16 +266,83 @@ const EmployerDashboard = () => {
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-              <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+              <button
+                className={showFilters ? 'btn-premium' : 'btn-outline'}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}
+                onClick={() => setShowFilters(prev => !prev)}
+              >
                 <Filter size={18} />
                 {t('filter')}
               </button>
             </div>
 
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                style={{
+                  display: 'flex',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-end',
+                  marginBottom: '24px',
+                  padding: '16px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-color)'
+                }}
+              >
+                <div style={{ minWidth: '160px', flex: 1 }}>
+                  <label className="input-label">{t('skill')}</label>
+                  <select className="input-field" value={filters.skill} onChange={e => setFilters({ ...filters, skill: e.target.value })}>
+                    <option value="">{t('all_skills')}</option>
+                    {allSkills.map(skill => (
+                      <option key={skill} value={skill}>{skill}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ minWidth: '160px', flex: 1 }}>
+                  <label className="input-label">{t('location')}</label>
+                  <select className="input-field" value={filters.location} onChange={e => setFilters({ ...filters, location: e.target.value })}>
+                    <option value="">{t('all_locations')}</option>
+                    {allLocations.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ minWidth: '160px', flex: 1 }}>
+                  <label className="input-label">{t('availability')}</label>
+                  <select className="input-field" value={filters.availability} onChange={e => setFilters({ ...filters, availability: e.target.value })}>
+                    <option value="">{t('any_availability')}</option>
+                    <option value="available">{t('available')}</option>
+                    <option value="busy">{t('busy')}</option>
+                    <option value="unavailable">{t('unavailable')}</option>
+                  </select>
+                </div>
+                {hasActiveFilters && (
+                  <button
+                    className="btn-outline"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px' }}
+                    onClick={() => setFilters({ skill: '', location: '', availability: '' })}
+                  >
+                    <X size={16} />
+                    {t('clear_filters')}
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {!loading && filteredWorkers.length > 0 && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>
+                {t('workers_found').replace('{n}', filteredWorkers.length)}
+              </p>
+            )}
+
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('loading')}</div>
             ) : filteredWorkers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('no_workers')}</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{hasActiveFilters ? t('no_workers_filter') : t('no_workers')}</div>
             ) : (
               <div className="grid-cards">
                 {filteredWorkers.map((worker, idx) => (
@@ -325,7 +404,7 @@ const EmployerDashboard = () => {
                                    worker.availability === 'unavailable' ? '#6b7280' :
                                    '#3b82f6'
                           }}>
-                            {worker.availability || 'Unknown'}
+                            {t(worker.availability || 'unknown')}
                           </span>
                           <span style={{
                             fontSize: '0.75rem',
@@ -343,7 +422,7 @@ const EmployerDashboard = () => {
                                    worker.status === 'active' ? '#22c55e' :
                                    '#6b7280'
                           }}>
-                            {worker.status || 'Unknown'}
+                            {t(worker.status || 'unknown')}
                           </span>
                         </div>
                       </div>
@@ -351,18 +430,18 @@ const EmployerDashboard = () => {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', padding: '12px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Experience</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('experience')}</div>
                         <div style={{ fontWeight: 600 }}>{worker.exp}</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Rating</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('rating')}</div>
                         <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Star size={14} color={worker.rating > 0 ? 'var(--accent-gold)' : 'var(--text-muted)'} fill={worker.rating > 0 ? 'var(--accent-gold)' : 'none'} />
                           {worker.rating > 0 ? worker.rating : 'N/A'}
                         </div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Views</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('views')}</div>
                         <div style={{ fontWeight: 600 }}>{worker.profile_views || 0}</div>
                       </div>
                     </div>
@@ -397,7 +476,7 @@ const EmployerDashboard = () => {
                           }}
                         >
                           <Phone size={16} />
-                          Call
+                          {t('call')}
                         </motion.a>
                         <motion.a
                           whileHover={{ scale: 1.05 }}
@@ -455,10 +534,10 @@ const EmployerDashboard = () => {
 
         {activeTab === 'jobs' && (
           <div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '20px' }}>My Posted Jobs</h2>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '20px' }}>{t('my_posted_jobs')}</h2>
             {myJobs.length === 0 ? (
               <div style={{ padding: '40px', textAlign: 'center', background: 'var(--bg-elevated)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-                You haven't posted any jobs yet.
+                {t('no_jobs')}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -469,11 +548,11 @@ const EmployerDashboard = () => {
                         <h3 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', marginBottom: '4px' }}>{job.title}</h3>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', gap: '16px' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={14} /> {job.location}</span>
-                          <span>Salary: {job.salary_range || 'Not specified'}</span>
+                          <span>{t('salary')}: {job.salary_range || t('not_specified')}</span>
                         </div>
                       </div>
                       <span style={{ padding: '4px 12px', background: 'var(--accent-gold)', color: '#000', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                        {job.status.toUpperCase()}
+                        {t(job.status).toUpperCase()}
                       </span>
                     </div>
                     
@@ -482,16 +561,16 @@ const EmployerDashboard = () => {
                     </p>
 
                     <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                      <h4 style={{ fontSize: '1rem', marginBottom: '12px' }}>Applications</h4>
+                      <h4 style={{ fontSize: '1rem', marginBottom: '12px' }}>{t('applications')}</h4>
                       {jobApplications.filter(app => app.job_title === job.title).length === 0 ? (
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No applications yet.</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('no_applications_yet')}</p>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {jobApplications.filter(app => app.job_title === job.title).map(app => (
                             <div key={app.application_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
                               <div>
                                 <div style={{ fontWeight: 600 }}>{app.worker_name}</div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status: {app.status}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('status')}: {t(app.status)}</div>
                               </div>
                               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 {app.status === 'pending' ? (
@@ -503,7 +582,7 @@ const EmployerDashboard = () => {
                                       className="btn-outline"
                                       style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444' }}
                                     >
-                                      Reject
+                                      {t('reject')}
                                     </motion.button>
                                     <motion.button
                                       whileHover={{ scale: 1.02 }}
@@ -512,13 +591,13 @@ const EmployerDashboard = () => {
                                       className="btn-premium"
                                       style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000' }}
                                     >
-                                      Hire
+                                      {t('hire')}
                                     </motion.button>
                                   </>
                                 ) : (
                                   <>
                                     <span style={{ padding: '4px 12px', background: (app.status === 'accepted' || app.status === 'hired') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: (app.status === 'accepted' || app.status === 'hired') ? 'var(--accent-emerald)' : '#ef4444', borderRadius: '8px', fontWeight: 500, fontSize: '0.85rem', textTransform: 'capitalize' }}>
-                                      {app.status}
+                                      {t(app.status)}
                                     </span>
                                     {(app.status === 'accepted' || app.status === 'hired') && (
                                       <>
@@ -532,7 +611,7 @@ const EmployerDashboard = () => {
                                           className="btn-outline"
                                           style={{ padding: '6px 12px', fontSize: '0.8rem', marginLeft: '8px' }}
                                         >
-                                          Rate
+                                          {t('rate')}
                                         </motion.button>
                                         <motion.button
                                           whileHover={{ scale: 1.02 }}
@@ -541,7 +620,7 @@ const EmployerDashboard = () => {
                                           className="btn-outline"
                                           style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444', marginLeft: '8px' }}
                                         >
-                                          Fire
+                                          {t('fire')}
                                         </motion.button>
                                         <motion.button
                                           whileHover={{ scale: 1.02 }}
@@ -550,7 +629,7 @@ const EmployerDashboard = () => {
                                           className="btn-outline"
                                           style={{ padding: '6px 12px', fontSize: '0.8rem', marginLeft: '8px' }}
                                         >
-                                          Left
+                                          {t('left_status')}
                                         </motion.button>
                                       </>
                                     )}
@@ -561,7 +640,7 @@ const EmployerDashboard = () => {
                                   className="btn-outline"
                                   style={{ padding: '6px 12px', fontSize: '0.85rem' }}
                                 >
-                                  View Profile
+                                  {t('view_profile')}
                                 </button>
                               </div>
                             </div>
@@ -623,7 +702,7 @@ const EmployerDashboard = () => {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             src={selectedImage}
-            alt="Full size view"
+            alt={t('full_size_view')}
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '90vw',
@@ -669,13 +748,13 @@ const EmployerDashboard = () => {
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
             }}
           >
-            <h3 style={{ marginBottom: '16px', fontSize: '1.3rem' }}>Rate Worker</h3>
+            <h3 style={{ marginBottom: '16px', fontSize: '1.3rem' }}>{t('rate_worker_title')}</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Rate your experience with <strong>{ratingWorker.worker_name}</strong>
+              {t('rate_experience_with')} <strong>{ratingWorker.worker_name}</strong>
             </p>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Rating</label>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('rating')}</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <Star
@@ -692,11 +771,11 @@ const EmployerDashboard = () => {
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Comment (optional)</label>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>{t('comment_optional')}</label>
               <textarea
                 value={ratingComment}
                 onChange={(e) => setRatingComment(e.target.value)}
-                placeholder="Share your experience with this worker..."
+                placeholder={t('rating_comment_placeholder')}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -722,14 +801,14 @@ const EmployerDashboard = () => {
                 className="btn-outline"
                 style={{ padding: '10px 20px' }}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 onClick={handleRateWorker}
                 className="btn-premium"
                 style={{ padding: '10px 20px', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000' }}
               >
-                Submit Rating
+                {t('submit_rating')}
               </button>
             </div>
           </motion.div>

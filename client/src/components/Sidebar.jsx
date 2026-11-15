@@ -37,16 +37,16 @@ const Sidebar = ({ role }) => {
   const handleLogout = async () => {
     setMenuOpen(false);
     const confirmed = await confirmAction({
-      title: 'Confirm Logout',
-      message: 'Are you sure you want to log out of your account?',
-      confirmText: 'Yes, Log Out',
-      cancelText: 'Cancel',
+      title: t('confirm_logout'),
+      message: t('confirm_logout_message'),
+      confirmText: t('yes_logout'),
+      cancelText: t('cancel'),
       type: 'warning'
     });
 
     if (confirmed) {
       localStorage.clear();
-      showToast('Logged out successfully', 'info');
+      showToast(t('logged_out_success'), 'info');
       navigate('/');
     }
   };
@@ -70,7 +70,7 @@ const Sidebar = ({ role }) => {
               color: 'var(--text-main)',
               cursor: 'pointer'
             }}
-            aria-label="Open sidebar menu"
+            aria-label={t('open_sidebar_menu')}
           >
             <Menu size={22} color={activeAccent} />
           </motion.button>
@@ -91,7 +91,7 @@ const Sidebar = ({ role }) => {
             borderRadius: '12px',
             border: '1px solid var(--border-color)'
           }}>
-            {role}
+            {t(role)}
           </span>
           {/* Notification Bell */}
           <motion.button
@@ -110,7 +110,7 @@ const Sidebar = ({ role }) => {
               cursor: 'pointer',
               transition: 'border-color 0.2s'
             }}
-            aria-label="Notifications"
+            aria-label={t('notifications')}
           >
             <Bell size={20} color={activeAccent} />
             {unreadCount > 0 && (
@@ -194,7 +194,7 @@ const Sidebar = ({ role }) => {
                     Ishimo
                   </h2>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    {role} Menu
+                    {role === 'employer' ? t('employer_menu') : t('worker_menu')}
                   </div>
                 </div>
                 <button
@@ -207,7 +207,7 @@ const Sidebar = ({ role }) => {
                     border: '1px solid var(--border-color)',
                     cursor: 'pointer'
                   }}
-                  aria-label="Close menu"
+                  aria-label={t('close_menu')}
                 >
                   <X size={20} />
                 </button>
@@ -255,7 +255,7 @@ const Sidebar = ({ role }) => {
                     {role === 'employer' ? <Briefcase size={18} color="var(--accent-gold)" /> : <User size={18} color="var(--accent-emerald)" />}
                   </div>
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role === 'employer' ? t('employer') + ' Account' : t('worker') + ' Account'}</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role === 'employer' ? `${t('employer')} ${t('account')}` : `${t('worker')} ${t('account')}`}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {localStorage.getItem('userId') || '—'}</div>
                   </div>
                 </div>
@@ -269,7 +269,7 @@ const Sidebar = ({ role }) => {
                   }}
                 >
                   <LogOut size={18} />
-                  Logout Account
+                  {t('logout_account')}
                 </button>
               </div>
             </motion.div>
@@ -284,7 +284,7 @@ const Sidebar = ({ role }) => {
             Ishimo
           </h2>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            {role} Portal
+            {role === 'employer' ? t('employer_portal') : t('worker_portal')}
           </div>
         </div>
 
@@ -325,7 +325,7 @@ const Sidebar = ({ role }) => {
               {role === 'employer' ? <Briefcase size={16} color="var(--accent-gold)" /> : <User size={16} color="var(--accent-emerald)" />}
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role === 'employer' ? 'Employer' : 'Worker'}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role === 'employer' ? t('employer') : t('worker')}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {localStorage.getItem('userId') || '—'}</div>
             </div>
           </div>
@@ -341,7 +341,7 @@ const Sidebar = ({ role }) => {
             }}
           >
             <LogOut size={20} />
-            Logout
+            {t('logout')}
           </motion.button>
         </div>
       </div>

@@ -62,6 +62,19 @@ const isValidPassword = (password) => /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(passw
 
 // Rwanda mobile numbers: optional +250 / 250 / 0 prefix, then 7X XXX XXX
 const isValidRwandaPhone = (phone) => /^(?:\+?250|0)7\d{8}$/.test(phone.replace(/[\s\-().]/g, ''));
+
+// Allowed education levels for worker registration. Mirrors the select options
+// in client/src/pages/RegisterWorker.jsx — keep both lists in sync.
+const WORKER_EDUCATION_LEVELS = [
+  'No Formal Education',
+  'Primary School',
+  'Secondary School (O-Level)',
+  'Secondary School (A-Level)',
+  'TVET / Vocational Certificate',
+  'Diploma',
+  "Bachelor's Degree",
+  "Master's Degree or Higher",
+];
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
@@ -330,6 +343,7 @@ app.post('/api/register/worker', async (req, res) => {
   const password = (req.body.password || '').trim();
   const phone    = sanitize(req.body.phone);
   const location = sanitize(req.body.location);
+  const education = sanitize(req.body.education);
 
   if (!fullName || fullName.length < 3) return res.status(400).json({ error: 'Full name must be at least 3 characters.' });
   if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
@@ -337,6 +351,8 @@ app.post('/api/register/worker', async (req, res) => {
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
   if (!isValidRwandaPhone(phone)) return res.status(400).json({ error: 'A valid Rwanda phone number is required (e.g. +250 7XX XXX XXX).' });
   if (!location || location.length < 3) return res.status(400).json({ error: 'Location is required.' });
+  if (!education) return res.status(400).json({ error: 'Education level is required.' });
+  if (!WORKER_EDUCATION_LEVELS.includes(education)) return res.status(400).json({ error: 'Please select a valid education level.' });
   if (req.body.termsAccepted !== true) return res.status(400).json({ error: 'You must accept the Terms and Conditions to register.' });
 
   try {
@@ -350,7 +366,7 @@ app.post('/api/register/worker', async (req, res) => {
           return res.status(400).json({ error: 'Email already exists' });
         }
         const userId = this.lastID;
-        db.run('INSERT INTO workers (user_id, full_name, phone, location) VALUES ($1, $2, $3, $4)', [userId, fullName, phone, location || ''], function(err) {
+        db.run('INSERT INTO workers (user_id, full_name, phone, location, education) VALUES ($1, $2, $3, $4, $5)', [userId, fullName, phone, location || '', education], function(err) {
           if (err) {
             db.run('ROLLBACK');
             return res.status(500).json({ error: 'Failed to create worker profile' });
@@ -369,6 +385,7 @@ app.post('/api/register/worker', async (req, res) => {
                   <li>Name: ${fullName}</li>
                   <li>Email: ${email}</li>
                   <li>Location: ${location || 'Not specified'}</li>
+                  <li>Education: ${education}</li>
                 </ul>
                 <p>Please complete your profile to start receiving job requests from employers.</p>
                 <p>Log in to your dashboard to complete your onboarding process.</p>
@@ -387,6 +404,7 @@ app.post('/api/register/worker', async (req, res) => {
                 <p><strong>Worker Name:</strong> ${fullName}</p>
                 <p><strong>Worker Email:</strong> ${email}</p>
                 <p><strong>Location:</strong> ${location || 'Not specified'}</p>
+                <p><strong>Education:</strong> ${education}</p>
                 <p><strong>Registration Time:</strong> ${new Date().toLocaleString()}</p>
                 <p>Please log in to the admin dashboard for more details.</p>
               `;

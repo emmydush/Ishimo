@@ -3,11 +3,13 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { UploadCloud, CheckCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 const WorkerOnboarding = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     skills: '',
@@ -27,7 +29,7 @@ const WorkerOnboarding = () => {
       if (passportPhoto) uploaded++;
       if (additionalPhoto) uploaded++;
       if (uploaded < 2) {
-        showToast('You must upload at least two photos.', 'error');
+        showToast(t('err_upload_two_photos'), 'error');
         return;
       }
     }
@@ -36,7 +38,7 @@ const WorkerOnboarding = () => {
     } else {
       const userId = localStorage.getItem('userId');
       if (!userId) {
-        showToast('Missing user ID. Please register again.', 'error');
+        showToast(t('err_missing_user_id'), 'error');
         return;
       }
 
@@ -58,20 +60,20 @@ const WorkerOnboarding = () => {
         
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          showToast('Server returned an unexpected response. Please try again.', 'error');
+          showToast(t('err_unexpected_response'), 'error');
           return;
         }
 
         const result = await response.json();
         
         if (response.ok) {
-          showToast('Profile onboarding completed successfully!', 'success');
+          showToast(t('onboarding_success'), 'success');
           navigate('/worker-dashboard');
         } else {
-          showToast(result.error || 'Failed to complete profile', 'error');
+          showToast(result.error || t('err_complete_profile'), 'error');
         }
       } catch (err) {
-        showToast('Network error while completing profile', 'error');
+        showToast(t('err_network_complete_profile'), 'error');
       }
     }
   };
@@ -104,8 +106,8 @@ const WorkerOnboarding = () => {
           ) : (
             <div>
               <UploadCloud size={32} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
-              <p style={{ color: 'var(--text-main)', fontWeight: 500 }}>Click to upload</p>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>PNG, JPG, PDF up to 10MB</p>
+              <p style={{ color: 'var(--text-main)', fontWeight: 500 }}>{t('click_to_upload')}</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('file_types_note')}</p>
             </div>
           )}
         </div>
@@ -128,8 +130,8 @@ const WorkerOnboarding = () => {
         style={{ width: '100%', maxWidth: '600px', padding: '48px' }}
       >
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Complete Your Profile</h2>
-          <p style={{ color: 'var(--text-muted)' }}>You must complete these details to activate your account.</p>
+          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>{t('complete_your_profile')}</h2>
+          <p style={{ color: 'var(--text-muted)' }}>{t('complete_profile_subtitle')}</p>
           
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '24px' }}>
             {[1, 2, 3].map(i => (
@@ -153,33 +155,33 @@ const WorkerOnboarding = () => {
           {step === 1 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="input-group">
-                <label className="input-label">What do you know to do? (Skills)</label>
+                <label className="input-label">{t('skills_label')}</label>
                 <input 
                   type="text" 
                   className="input-field" 
-                  placeholder="e.g. Nanny, Cooking, Cleaning, Security" 
+                  placeholder={t('skills_placeholder')} 
                   required 
                   value={formData.skills}
                   onChange={e => setFormData({...formData, skills: e.target.value})}
                 />
               </div>
               <div className="input-group">
-                <label className="input-label">Years of Experience</label>
+                <label className="input-label">{t('years_of_experience')}</label>
                 <input 
                   type="number" 
                   className="input-field" 
-                  placeholder="e.g. 5" 
+                  placeholder={t('exp_placeholder')} 
                   required 
                   value={formData.experience}
                   onChange={e => setFormData({...formData, experience: e.target.value})}
                 />
               </div>
               <div className="input-group">
-                <label className="input-label">National ID Number</label>
+                <label className="input-label">{t('national_id_number')}</label>
                 <input 
                   type="text" 
                   className="input-field" 
-                  placeholder="Enter your ID number" 
+                  placeholder={t('id_placeholder')} 
                   required 
                   value={formData.nationalId}
                   onChange={e => setFormData({...formData, nationalId: e.target.value})}
@@ -190,22 +192,22 @@ const WorkerOnboarding = () => {
 
           {step === 2 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <FileUploadInput label="Upload National ID Photo" fileState={idPhoto} onChange={setIdPhoto} />
+              <FileUploadInput label={t('upload_national_id_photo')} fileState={idPhoto} onChange={setIdPhoto} />
               <div style={{ height: '24px' }} />
-              <FileUploadInput label="Upload Passport Photo" fileState={passportPhoto} onChange={setPassportPhoto} />
+              <FileUploadInput label={t('upload_passport_photo')} fileState={passportPhoto} onChange={setPassportPhoto} />
               <div style={{ height: '24px' }} />
-              <FileUploadInput label="Upload Additional Photo (Optional)" fileState={additionalPhoto} onChange={setAdditionalPhoto} />
+              <FileUploadInput label={t('upload_additional_photo')} fileState={additionalPhoto} onChange={setAdditionalPhoto} />
             </motion.div>
           )}
 
           {step === 3 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="input-group">
-                <label className="input-label">Recommendation Letter</label>
+                <label className="input-label">{t('recommendation_letter')}</label>
                 <textarea 
                   className="input-field" 
                   style={{ minHeight: '120px', resize: 'vertical' }}
-                  placeholder="Paste text or describe your recommendation..." 
+                  placeholder={t('recommendation_placeholder')} 
                   required 
                   value={formData.recommendation}
                   onChange={e => setFormData({...formData, recommendation: e.target.value})}
@@ -222,7 +224,7 @@ const WorkerOnboarding = () => {
                 style={{ flex: 1 }}
                 onClick={() => setStep(step - 1)}
               >
-                Back
+                {t('back')}
               </button>
             )}
             <motion.button 
@@ -232,7 +234,7 @@ const WorkerOnboarding = () => {
               style={{ flex: 2, background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #047857 100%)', color: '#fff' }}
               type="submit"
             >
-              {step === 3 ? 'Finish Registration' : 'Continue'}
+              {step === 3 ? t('finish_registration') : t('continue')}
             </motion.button>
           </div>
         </form>

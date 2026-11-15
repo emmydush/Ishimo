@@ -3,11 +3,13 @@ import Sidebar from '../components/Sidebar';
 import { motion } from 'framer-motion';
 import { Settings, Shield, Bell } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL } from '../config/api';
 
 const EmployerSettings = () => {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
   const handlePasswordChange = async (e) => {
@@ -15,10 +17,10 @@ const EmployerSettings = () => {
     const current = passwords.current.trim();
     const newPwd  = passwords.new.trim();
     const confirm = passwords.confirm.trim();
-    if (!current) return showToast('Current password is required.', 'error');
-    if (newPwd.length < 8) return showToast('New password must be at least 8 characters.', 'error');
+    if (!current) return showToast(t('err_current_password_required'), 'error');
+    if (newPwd.length < 8) return showToast(t('err_new_password_min'), 'error');
     if (newPwd !== confirm) {
-      return showToast("New passwords don't match", 'error');
+      return showToast(t('err_passwords_mismatch'), 'error');
     }
     const userId = localStorage.getItem('userId');
     try {
@@ -28,14 +30,14 @@ const EmployerSettings = () => {
         body: JSON.stringify({ currentPassword: current, newPassword: newPwd })
       });
       if (res.ok) {
-        showToast('Password updated successfully!', 'success');
+        showToast(t('password_updated_success'), 'success');
         setPasswords({ current: '', new: '', confirm: '' });
       } else {
         const data = await res.json();
-        showToast(data.error || 'Update failed', 'error');
+        showToast(data.error || t('update_failed'), 'error');
       }
     } catch (err) {
-      showToast('Network error while updating password', 'error');
+      showToast(t('err_network_password'), 'error');
     }
   };
 
@@ -45,48 +47,48 @@ const EmployerSettings = () => {
       <div className="main-content">
         <header style={{ marginBottom: '40px' }}>
           <h1 style={{ fontSize: '2.5rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Settings size={36} color="var(--accent-gold)" /> Account Settings
+            <Settings size={36} color="var(--accent-gold)" /> {t('account_settings')}
           </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Manage your security and notification preferences.</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('manage_security_notification_preferences')}</p>
         </header>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass-panel" style={{ padding: '32px' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-              <Shield size={20} color="var(--accent-gold)" /> Security
+              <Shield size={20} color="var(--accent-gold)" /> {t('security')}
             </h3>
             <form onSubmit={handlePasswordChange}>
               <div className="input-group">
-                <label className="input-label">Current Password</label>
+                <label className="input-label">{t('current_password')}</label>
                 <PasswordInput required value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} />
               </div>
               <div className="input-group">
-                <label className="input-label">New Password</label>
+                <label className="input-label">{t('new_password')}</label>
                 <PasswordInput required minLength={8} value={passwords.new} onChange={e => setPasswords({ ...passwords, new: e.target.value })} />
               </div>
               <div className="input-group" style={{ marginBottom: '24px' }}>
-                <label className="input-label">Confirm New Password</label>
+                <label className="input-label">{t('confirm_new_password')}</label>
                 <PasswordInput required minLength={8} value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} />
               </div>
-              <button className="btn-outline" type="submit" style={{ width: '100%' }}>Update Password</button>
+              <button className="btn-outline" type="submit" style={{ width: '100%' }}>{t('update_password')}</button>
             </form>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="glass-panel" style={{ padding: '32px', height: 'fit-content' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-              <Bell size={20} color="var(--accent-gold)" /> Notifications
+              <Bell size={20} color="var(--accent-gold)" /> {t('notifications')}
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid var(--border-color)' }}>
               <div>
-                <div style={{ fontWeight: 500 }}>Email Alerts</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receive emails when a worker accepts your request</div>
+                <div style={{ fontWeight: 500 }}>{t('email_alerts')}</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('email_alerts_employer_desc')}</div>
               </div>
               <input type="checkbox" defaultChecked style={{ width: '20px', height: '20px', accentColor: 'var(--accent-gold)' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
               <div>
-                <div style={{ fontWeight: 500 }}>SMS Alerts</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Get text messages for urgent updates</div>
+                <div style={{ fontWeight: 500 }}>{t('sms_alerts')}</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('sms_alerts_employer_desc')}</div>
               </div>
               <input type="checkbox" style={{ width: '20px', height: '20px', accentColor: 'var(--accent-gold)' }} />
             </div>

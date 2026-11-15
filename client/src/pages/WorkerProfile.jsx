@@ -4,11 +4,13 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, Briefcase, CreditCard, Upload } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 const WorkerProfile = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   
   const [profile, setProfile] = useState({
@@ -66,8 +68,8 @@ const WorkerProfile = () => {
     e.preventDefault();
     const userId = localStorage.getItem('userId');
     
-    if (!profile.full_name.trim()) return showToast('Full name is required.', 'error');
-    if (!profile.phone.trim()) return showToast('Phone number is required.', 'error');
+    if (!profile.full_name.trim()) return showToast(t('err_full_name_required'), 'error');
+    if (!profile.phone.trim()) return showToast(t('err_phone_required'), 'error');
 
     const formData = new FormData();
     formData.append('full_name', profile.full_name.trim());
@@ -87,17 +89,17 @@ const WorkerProfile = () => {
       });
       
       if (response.ok) {
-        showToast('Profile updated successfully!', 'success');
+        showToast(t('profile_updated_success'), 'success');
       } else {
         const data = await response.json();
-        showToast(data.error || 'Update failed', 'error');
+        showToast(data.error || t('update_failed'), 'error');
       }
     } catch (err) {
-      showToast('Network error while updating profile', 'error');
+      showToast(t('err_network_profile'), 'error');
     }
   };
 
-  if (loading) return <div className="app-layout"><Sidebar role="worker" /><div className="main-content flex-center">Loading...</div></div>;
+  if (loading) return <div className="app-layout"><Sidebar role="worker" /><div className="main-content flex-center">{t('loading')}</div></div>;
 
   return (
     <div className="app-layout">
@@ -105,83 +107,83 @@ const WorkerProfile = () => {
       <div className="main-content">
         <header style={{ marginBottom: '40px' }}>
           <h1 style={{ fontSize: '2.5rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <User size={36} color="var(--accent-emerald)" /> My Profile
+            <User size={36} color="var(--accent-emerald)" /> {t('my_profile')}
           </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Manage your professional details, identity, and public presentation.</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('manage_professional_details')}</p>
         </header>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel" style={{ padding: '40px', maxWidth: '800px' }}>
           <form onSubmit={handleUpdate} encType="multipart/form-data">
             
             <div className="input-group">
-              <label className="input-label">Full Name</label>
+              <label className="input-label">{t('full_name')}</label>
               <input type="text" className="input-field" value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} required />
             </div>
             
             <div className="input-group">
-              <label className="input-label">Phone Number</label>
+              <label className="input-label">{t('phone')}</label>
               <input type="tel" className="input-field" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} required />
             </div>
 
             <div className="input-group">
-              <label className="input-label">Location</label>
-              <input type="text" className="input-field" placeholder="City, District or Sector" value={profile.location} onChange={e => setProfile({...profile, location: e.target.value})} />
+              <label className="input-label">{t('location')}</label>
+              <input type="text" className="input-field" placeholder={t('location_placeholder')} value={profile.location} onChange={e => setProfile({...profile, location: e.target.value})} />
             </div>
 
             <h3 style={{ marginTop: '32px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Briefcase size={20} color="var(--accent-gold)" /> Professional Details
+              <Briefcase size={20} color="var(--accent-gold)" /> {t('professional_details')}
             </h3>
             
             <div className="input-group">
-              <label className="input-label">Skills (Comma separated)</label>
+              <label className="input-label">{t('skills_comma')}</label>
               <input type="text" className="input-field" value={profile.skills} onChange={e => setProfile({...profile, skills: e.target.value})} />
             </div>
 
             <div className="input-group">
-              <label className="input-label">Years of Experience</label>
+              <label className="input-label">{t('years_of_experience')}</label>
               <input type="number" className="input-field" value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} />
             </div>
 
             <h3 style={{ marginTop: '32px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CreditCard size={20} color="var(--accent-emerald)" /> Identity Verification
+              <CreditCard size={20} color="var(--accent-emerald)" /> {t('identity_verification')}
             </h3>
 
             <div className="input-group">
-              <label className="input-label">National ID Number</label>
+              <label className="input-label">{t('national_id_number')}</label>
               <input type="text" className="input-field" value={profile.national_id} onChange={e => setProfile({...profile, national_id: e.target.value})} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <div className="input-group">
-                <label className="input-label">National ID Photo</label>
+                <label className="input-label">{t('national_id_photo')}</label>
                 <div style={{ border: '1px dashed var(--border-color)', borderRadius: '12px', padding: '16px', textAlign: 'center', position: 'relative' }}>
                   {idPhotoUrl ? (
-                    <img src={idPhotoUrl} alt="ID Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} />
+                    <img src={idPhotoUrl} alt={t('id_preview')} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} />
                   ) : (
                     <div style={{ padding: '30px 0', color: 'var(--text-muted)' }}><Upload size={24} style={{ margin: '0 auto' }}/></div>
                   )}
                   <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setIdPhotoFile, setIdPhotoUrl)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Click to upload new ID photo</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('click_upload_id')}</div>
                 </div>
               </div>
 
               <div className="input-group">
-                <label className="input-label">Passport / Profile Photo</label>
+                <label className="input-label">{t('passport_profile_photo')}</label>
                 <div style={{ border: '1px dashed var(--border-color)', borderRadius: '12px', padding: '16px', textAlign: 'center', position: 'relative' }}>
                   {passportPhotoUrl ? (
-                    <img src={passportPhotoUrl} alt="Passport Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} />
+                    <img src={passportPhotoUrl} alt={t('passport_preview')} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} />
                   ) : (
                     <div style={{ padding: '30px 0', color: 'var(--text-muted)' }}><Upload size={24} style={{ margin: '0 auto' }}/></div>
                   )}
                   <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setPassportPhotoFile, setPassportPhotoUrl)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Click to upload new passport photo</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('click_upload_passport')}</div>
                 </div>
               </div>
             </div>
 
             <div style={{ marginTop: '40px' }}>
               <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn-premium" style={{ background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #047857 100%)', color: '#fff', width: '100%' }} type="submit">
-                Save Profile Changes
+                {t('save_profile_changes')}
               </motion.button>
             </div>
           </form>

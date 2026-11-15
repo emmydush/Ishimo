@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 // Password input with a show/hide visibility toggle.
 const PasswordInput = ({ value, onChange, placeholder, required, minLength, disabled, ...rest }) => {
+  const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
 
   return (
@@ -22,8 +24,8 @@ const PasswordInput = ({ value, onChange, placeholder, required, minLength, disa
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? 'Hide password' : 'Show password'}
-        title={visible ? 'Hide password' : 'Show password'}
+        aria-label={visible ? t('hide_password') : t('show_password')}
+        title={visible ? t('hide_password') : t('show_password')}
         style={{
           position: 'absolute',
           right: '10px',

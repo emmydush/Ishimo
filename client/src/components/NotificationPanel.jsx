@@ -2,38 +2,43 @@ import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Briefcase, CheckCircle, XCircle, Check, BellOff } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useLanguage } from '../context/LanguageContext';
+
+const TYPE_LABEL_KEY = {
+  job_request: 'job_request_type',
+  request_response: 'response_type',
+  new_application: 'application_type',
+};
 
 const TYPE_META = {
   job_request: {
     icon: <Briefcase size={16} />,
     color: 'var(--accent-gold)',
     bg: 'rgba(212,175,55,0.12)',
-    label: 'Job Request',
   },
   request_response: {
     icon: <CheckCircle size={16} />,
     color: 'var(--accent-emerald)',
     bg: 'rgba(16,185,129,0.12)',
-    label: 'Response',
   },
   new_application: {
     icon: <Bell size={16} />,
     color: '#a78bfa',
     bg: 'rgba(167,139,250,0.12)',
-    label: 'Application',
   },
 };
 
-const timeAgo = (dateStr) => {
+const timeAgo = (dateStr, t) => {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return t('just_now');
+  if (diff < 3600) return `${Math.floor(diff / 60)}${t('minutes_ago')}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('hours_ago')}`;
+  return `${Math.floor(diff / 86400)}${t('days_ago')}`;
 };
 
 const NotificationPanel = ({ isOpen, onClose, accentColor }) => {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { t } = useLanguage();
   const panelRef = useRef(null);
 
   // Close on outside click
@@ -81,7 +86,7 @@ const NotificationPanel = ({ isOpen, onClose, accentColor }) => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Bell size={18} color={accentColor} />
-              <span style={{ fontWeight: 700, fontSize: '1rem' }}>Notifications</span>
+              <span style={{ fontWeight: 700, fontSize: '1rem' }}>{t('notifications')}</span>
               {unreadCount > 0 && (
                 <span style={{
                   background: '#ef4444',
@@ -117,7 +122,7 @@ const NotificationPanel = ({ isOpen, onClose, accentColor }) => {
                   borderRadius: '6px',
                 }}
               >
-                <Check size={13} /> Mark all read
+                <Check size={13} /> {t('mark_all_read')}
               </button>
             )}
           </div>
@@ -136,7 +141,7 @@ const NotificationPanel = ({ isOpen, onClose, accentColor }) => {
               }}>
                 <BellOff size={36} color="var(--text-muted)" strokeWidth={1.5} />
                 <p style={{ fontSize: '0.9rem', textAlign: 'center', lineHeight: 1.5 }}>
-                  You're all caught up!<br />No notifications yet.
+                  {t('caught_up')}<br />{t('no_notifications_yet')}
                 </p>
               </div>
             ) : (
@@ -199,7 +204,7 @@ const NotificationPanel = ({ isOpen, onClose, accentColor }) => {
                         letterSpacing: '0.5px',
                         marginBottom: '2px',
                       }}>
-                        {meta.label}
+                        {t(TYPE_LABEL_KEY[n.type] || 'application_type')}
                       </div>
                       <p style={{
                         fontSize: '0.85rem',
@@ -211,7 +216,7 @@ const NotificationPanel = ({ isOpen, onClose, accentColor }) => {
                         {n.message}
                       </p>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                        {timeAgo(n.created_at)}
+                        {timeAgo(n.created_at, t)}
                       </span>
                     </div>
                   </motion.div>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import PasswordInput from '../components/PasswordInput';
 import { API_BASE_URL, networkErrorMessage } from '../config/api';
 
@@ -12,6 +13,17 @@ const Login = () => {
   const { showToast } = useToast();
   const { t } = useLanguage();
   const [formData, setFormData] = useState({ email: '', password: '' });
+
+  // Map known server-side error strings to localized messages.
+  const serverErrorMessage = (msg) => {
+    const known = {
+      'Invalid email or password': t('err_invalid_credentials'),
+      'Email and password are required': t('err_email_required'),
+      'Your account has been suspended by an administrator.': t('err_account_suspended'),
+      'Server error': t('err_server_error'),
+    };
+    return known[msg] || msg;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,7 +54,7 @@ const Login = () => {
           }
         }
       } else {
-        showToast(data.error || t('login_failed'), 'error');
+        showToast(serverErrorMessage(data.error) || t('login_failed'), 'error');
       }
     } catch (err) {
       showToast(networkErrorMessage(err), 'error');
@@ -51,6 +63,11 @@ const Login = () => {
 
   return (
     <div className="flex-center" style={{ minHeight: '100vh', position: 'relative' }}>
+      {/* Language switcher */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', zIndex: 2 }}>
+        <LanguageSwitcher />
+      </div>
+
       <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '60%', height: '50%', background: 'radial-gradient(circle, rgba(212, 175, 55, 0.08) 0%, rgba(10, 10, 11, 0) 70%)', zIndex: 0 }} />
 
       <motion.div
@@ -74,7 +91,7 @@ const Login = () => {
             <input
               type="text"
               className="input-field"
-              placeholder="you@example.com or admin"
+              placeholder={t('email_placeholder')}
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}

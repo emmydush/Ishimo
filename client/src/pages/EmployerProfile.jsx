@@ -4,11 +4,13 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, MapPin } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 const EmployerProfile = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({ phone: '', location: '' });
 
@@ -38,8 +40,8 @@ const EmployerProfile = () => {
       phone:    profile.phone.trim(),
       location: profile.location.trim(),
     };
-    if (!cleaned.phone)    return showToast('Phone number is required.', 'error');
-    if (!cleaned.location) return showToast('Location is required.', 'error');
+    if (!cleaned.phone)    return showToast(t('err_phone_required'), 'error');
+    if (!cleaned.location) return showToast(t('err_location_required'), 'error');
     try {
       const res = await fetch(`${API_BASE_URL}/api/employer/${userId}/profile`, {
         method: 'PUT',
@@ -47,17 +49,17 @@ const EmployerProfile = () => {
         body: JSON.stringify(cleaned)
       });
       if (res.ok) {
-        showToast('Profile updated successfully!', 'success');
+        showToast(t('profile_updated_success'), 'success');
       } else {
         const data = await res.json();
-        showToast(data.error || 'Update failed', 'error');
+        showToast(data.error || t('update_failed'), 'error');
       }
     } catch (err) {
-      showToast('Network error while updating profile', 'error');
+      showToast(t('err_network_profile'), 'error');
     }
   };
 
-  if (loading) return <div className="app-layout"><Sidebar role="employer" /><div className="main-content flex-center" style={{ color: 'var(--text-muted)' }}>Loading...</div></div>;
+  if (loading) return <div className="app-layout"><Sidebar role="employer" /><div className="main-content flex-center" style={{ color: 'var(--text-muted)' }}>{t('loading')}</div></div>;
 
   return (
     <div className="app-layout">
@@ -65,15 +67,15 @@ const EmployerProfile = () => {
       <div className="main-content">
         <header style={{ marginBottom: '40px' }}>
           <h1 style={{ fontSize: '2.5rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <User size={36} color="var(--accent-gold)" /> My Profile
+            <User size={36} color="var(--accent-gold)" /> {t('my_profile')}
           </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Manage your account details and location.</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('manage_account_details')}</p>
         </header>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel" style={{ padding: '40px', maxWidth: '800px' }}>
           <form onSubmit={handleUpdate}>
             <div className="input-group">
-              <label className="input-label">Phone Number</label>
+              <label className="input-label">{t('phone')}</label>
               <input
                 type="tel"
                 className="input-field"
@@ -84,7 +86,7 @@ const EmployerProfile = () => {
             </div>
             <div className="input-group" style={{ marginBottom: '32px' }}>
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <MapPin size={14} color="var(--accent-gold)" /> Location
+                <MapPin size={14} color="var(--accent-gold)" /> {t('location')}
               </label>
               <input
                 type="text"
@@ -100,7 +102,7 @@ const EmployerProfile = () => {
               className="btn-premium"
               type="submit"
             >
-              Save Profile Changes
+              {t('save_profile_changes')}
             </motion.button>
           </form>
         </motion.div>

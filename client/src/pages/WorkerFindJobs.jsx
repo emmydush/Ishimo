@@ -4,11 +4,13 @@ import { Search, MapPin, DollarSign, Briefcase, X, Phone, Mail, Calendar, Clock,
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 export default function WorkerFindJobs() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t, language } = useLanguage();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,7 +26,7 @@ export default function WorkerFindJobs() {
         setJobs(data);
       } catch (err) {
         console.error('Error fetching jobs:', err);
-        showToast('Failed to load jobs. Please check your connection.', 'error');
+        showToast(t('err_load_jobs'), 'error');
       } finally {
         setLoading(false);
       }
@@ -41,7 +43,7 @@ export default function WorkerFindJobs() {
 
   const handleApply = async (jobId) => {
     const workerId = localStorage.getItem('userId');
-    if (!workerId) return showToast('You must be logged in as a worker to apply.', 'error');
+    if (!workerId) return showToast(t('err_login_worker_apply'), 'error');
 
     setApplying(jobId);
     try {
@@ -55,14 +57,14 @@ export default function WorkerFindJobs() {
         const newApplied = new Set([...appliedJobs, jobId]);
         setAppliedJobs(newApplied);
         localStorage.setItem('appliedJobs', JSON.stringify([...newApplied]));
-        showToast('Application submitted successfully! The employer will contact you.', 'success');
+        showToast(t('application_success_msg'), 'success');
         // Close modal if open
         if (selectedJob?.id === jobId) setSelectedJob(null);
       } else {
-        showToast(data.error || 'Failed to submit application', 'error');
+        showToast(data.error || t('err_submit_application'), 'error');
       }
     } catch (err) {
-      showToast('Network error while submitting application', 'error');
+      showToast(t('err_network_application'), 'error');
     } finally {
       setApplying(null);
     }
@@ -75,14 +77,14 @@ export default function WorkerFindJobs() {
   );
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return 'Recently';
+    if (!dateStr) return t('recently');
     const date = new Date(dateStr);
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diffDays === 0) return t('today');
+    if (diffDays === 1) return t('yesterday');
+    if (diffDays < 7) return t('days_ago_fmt').replace('{n}', diffDays);
+    return date.toLocaleDateString(language === 'en' ? 'en-US' : language, { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -94,10 +96,10 @@ export default function WorkerFindJobs() {
           <div>
             <h1 style={{ fontSize: '2.2rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Briefcase size={28} color="var(--accent-emerald)" />
-              Find Jobs
+              {t('find_jobs')}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-              {loading ? 'Loading...' : `${filteredJobs.length} open position${filteredJobs.length !== 1 ? 's' : ''} available`}
+              {loading ? t('loading') : t(filteredJobs.length !== 1 ? 'open_positions_available' : 'open_position_available').replace('{n}', filteredJobs.length)}
             </p>
           </div>
 
@@ -106,7 +108,7 @@ export default function WorkerFindJobs() {
             <input
               type="text"
               className="input-field"
-              placeholder="Search jobs, locations..."
+              placeholder={t('search_jobs_placeholder')}
               style={{ paddingLeft: '44px', width: '260px' }}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -139,14 +141,14 @@ export default function WorkerFindJobs() {
           >
             <Briefcase size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }} />
             <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
-              {searchTerm ? `No jobs found for "${searchTerm}"` : 'No open job postings right now.'}
+              {searchTerm ? t('no_jobs_found').replace('{q}', searchTerm) : t('no_open_jobs')}
             </p>
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
                 style={{ marginTop: '12px', color: 'var(--accent-emerald)', fontSize: '0.9rem', cursor: 'pointer' }}
               >
-                Clear search
+                {t('clear_search')}
               </button>
             )}
           </motion.div>
@@ -180,7 +182,7 @@ export default function WorkerFindJobs() {
                       fontSize: '0.72rem', color: 'var(--accent-emerald)', fontWeight: 600,
                       display: 'flex', alignItems: 'center', gap: '4px'
                     }}>
-                      <CheckCircle size={11} /> Applied
+                      <CheckCircle size={11} /> {t('applied')}
                     </div>
                   )}
 
@@ -226,7 +228,7 @@ export default function WorkerFindJobs() {
                         transition: 'var(--transition-smooth)'
                       }}
                     >
-                      <Eye size={15} /> View Details
+                      <Eye size={15} /> {t('view_details')}
                     </motion.button>
 
                     {!isApplied && (
@@ -238,7 +240,7 @@ export default function WorkerFindJobs() {
                         onClick={() => handleApply(job.id)}
                         disabled={applying === job.id}
                       >
-                        {applying === job.id ? 'Applying...' : 'Apply Now'}
+                        {applying === job.id ? t('applying') : t('apply_now')}
                       </motion.button>
                     )}
                   </div>
@@ -307,7 +309,7 @@ export default function WorkerFindJobs() {
                       fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 600
                     }}>
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-emerald)' }} />
-                      Open Position
+                      {t('open_position')}
                     </div>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '10px', lineHeight: 1.2 }}>
                       {selectedJob.title}
@@ -322,7 +324,7 @@ export default function WorkerFindJobs() {
                         </span>
                       )}
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Calendar size={14} /> Posted {formatDate(selectedJob.created_at)}
+                        <Calendar size={14} /> {t('posted')} {formatDate(selectedJob.created_at)}
                       </span>
                     </div>
                   </div>
@@ -335,7 +337,7 @@ export default function WorkerFindJobs() {
                       color: 'var(--text-muted)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', flexShrink: 0
                     }}
-                    aria-label="Close"
+                    aria-label={t('close')}
                   >
                     <X size={18} />
                   </button>
@@ -347,7 +349,7 @@ export default function WorkerFindJobs() {
                 {/* Job Description */}
                 <div style={{ marginBottom: '28px' }}>
                   <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
-                    Job Description
+                    {t('job_description')}
                   </h3>
                   <p style={{
                     color: 'var(--text-main)', fontSize: '0.95rem',
@@ -366,7 +368,7 @@ export default function WorkerFindJobs() {
                   marginBottom: '24px'
                 }}>
                   <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
-                    Employer Contact
+                    {t('employer_contact')}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {selectedJob.employer_phone && (
@@ -394,7 +396,7 @@ export default function WorkerFindJobs() {
                           <Phone size={17} color="var(--accent-emerald)" />
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Phone Number</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{t('phone')}</div>
                           <div>{selectedJob.employer_phone}</div>
                         </div>
                       </a>
@@ -425,7 +427,7 @@ export default function WorkerFindJobs() {
                           <Mail size={17} color="var(--accent-gold)" />
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Email Address</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{t('email_address')}</div>
                           <div>{selectedJob.employer_email}</div>
                         </div>
                       </a>
@@ -433,7 +435,7 @@ export default function WorkerFindJobs() {
 
                     {!selectedJob.employer_phone && !selectedJob.employer_email && (
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '12px' }}>
-                        Contact information not available.
+                        {t('contact_not_available')}
                       </p>
                     )}
                   </div>
@@ -449,7 +451,7 @@ export default function WorkerFindJobs() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                       color: 'var(--accent-emerald)', fontWeight: 600, fontSize: '0.95rem'
                     }}>
-                      <CheckCircle size={18} /> Application Submitted
+                      <CheckCircle size={18} /> {t('application_submitted')}
                     </div>
                   ) : (
                     <motion.button
@@ -460,7 +462,7 @@ export default function WorkerFindJobs() {
                       onClick={() => handleApply(selectedJob.id)}
                       disabled={applying === selectedJob.id}
                     >
-                      {applying === selectedJob.id ? 'Submitting...' : 'Apply for This Job'}
+                      {applying === selectedJob.id ? t('submitting') : t('apply_for_job')}
                     </motion.button>
                   )}
                   <button
@@ -468,7 +470,7 @@ export default function WorkerFindJobs() {
                     className="btn-outline"
                     style={{ padding: '14px 20px', fontSize: '0.9rem' }}
                   >
-                    Close
+                    {t('close')}
                   </button>
                 </div>
               </div>

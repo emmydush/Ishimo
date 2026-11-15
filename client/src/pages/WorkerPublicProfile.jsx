@@ -7,12 +7,14 @@ import {
   ShieldCheck, ChevronLeft, FileText, CreditCard, Send, X
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 const WorkerPublicProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [worker, setWorker] = useState(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
@@ -54,7 +56,7 @@ const WorkerPublicProfile = () => {
 
   const handleRequest = async () => {
     const employerId = localStorage.getItem('userId');
-    if (!employerId) return showToast('You must be logged in as an employer.', 'error');
+    if (!employerId) return showToast(t('err_login_required_employer'), 'error');
     setRequesting(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/jobs/request`, {
@@ -65,12 +67,12 @@ const WorkerPublicProfile = () => {
       const data = await res.json();
       if (res.ok) {
         setRequested(true);
-        showToast('Direct job request sent to worker!', 'success');
+        showToast(t('direct_request_sent'), 'success');
       } else {
-        showToast(data.error || 'Failed to send request', 'error');
+        showToast(data.error || t('err_send_request'), 'error');
       }
     } catch (err) {
-      showToast('Network error while sending request', 'error');
+      showToast(t('err_network_request'), 'error');
     } finally {
       setRequesting(false);
     }
@@ -86,7 +88,7 @@ const WorkerPublicProfile = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Application ${status} successfully!`, 'success');
+        showToast(t('application_updated').replace('{status}', t(status)), 'success');
         // Refresh applications
         const employerId = localStorage.getItem('userId');
         const resApps = await fetch(`${API_BASE_URL}/api/employer/${employerId}/applications`);
@@ -94,10 +96,10 @@ const WorkerPublicProfile = () => {
         const workerApps = dataApps.filter(app => app.worker_id === parseInt(id));
         setApplications(workerApps);
       } else {
-        showToast(data.error || 'Failed to update status', 'error');
+        showToast(data.error || t('err_status_update'), 'error');
       }
     } catch (err) {
-      showToast('Network error while updating status', 'error');
+      showToast(t('err_network_status'), 'error');
     } finally {
       setUpdatingStatus(null);
     }
@@ -108,7 +110,7 @@ const WorkerPublicProfile = () => {
       <div className="app-layout">
         <Sidebar role="employer" />
         <div className="main-content flex-center">
-          <p style={{ color: 'var(--text-muted)' }}>Loading profile...</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('loading_profile')}</p>
         </div>
       </div>
     );
@@ -131,7 +133,7 @@ const WorkerPublicProfile = () => {
           onClick={() => navigate('/employer-dashboard')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', marginBottom: '32px', fontWeight: 500 }}
         >
-          <ChevronLeft size={20} /> Back to Workers
+          <ChevronLeft size={20} /> {t('back_to_workers')}
         </motion.button>
 
         <div className="responsive-profile-grid">
@@ -167,15 +169,15 @@ const WorkerPublicProfile = () => {
 
               <h2 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '4px' }}>{worker.full_name}</h2>
               <div style={{ color: 'var(--accent-gold)', fontWeight: 500, marginBottom: '16px' }}>
-                {skills[0] || 'Professional'}
+                {skills[0] || t('professional')}
               </div>
 
               {/* Stats row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                 {[
-                  { label: 'Experience', value: `${worker.experience || 0} yrs`, icon: <Clock size={16} color="var(--accent-gold)" /> },
-                  { label: 'Jobs Done', value: worker.completed_jobs, icon: <Briefcase size={16} color="var(--accent-emerald)" /> },
-                  { label: 'Profile Views', value: worker.profile_views || 0, icon: <User size={16} color="var(--accent-gold)" /> },
+                  { label: t('experience'), value: t('yrs_fmt').replace('{n}', worker.experience || 0), icon: <Clock size={16} color="var(--accent-gold)" /> },
+                  { label: t('jobs_done'), value: worker.completed_jobs, icon: <Briefcase size={16} color="var(--accent-emerald)" /> },
+                  { label: t('profile_views'), value: worker.profile_views || 0, icon: <User size={16} color="var(--accent-gold)" /> },
                 ].map(s => (
                   <div key={s.label} style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px 8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>{s.icon}</div>
@@ -190,7 +192,7 @@ const WorkerPublicProfile = () => {
                 {[1,2,3,4,5].map(i => (
                   <Star key={i} size={18} color={worker.rating > 0 ? 'var(--accent-gold)' : 'var(--text-muted)'} fill={worker.rating > 0 && i <= Math.round(worker.rating) ? "var(--accent-gold)" : "none"} />
                 ))}
-                <span style={{ marginLeft: '8px', fontWeight: 600 }}>{worker.rating > 0 ? worker.rating : 'No ratings'}</span>
+                <span style={{ marginLeft: '8px', fontWeight: 600 }}>{worker.rating > 0 ? worker.rating : t('no_ratings')}</span>
                 {worker.rating_count > 0 && (
                   <span style={{ marginLeft: '4px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>({worker.rating_count})</span>
                 )}
@@ -215,30 +217,30 @@ const WorkerPublicProfile = () => {
                 }}
               >
                 {requested ? (
-                  <><ShieldCheck size={18} /> Request Sent!</>
+                  <><ShieldCheck size={18} /> {t('request_sent')}</>
                 ) : requesting ? (
-                  'Sending...'
+                  t('sending')
                 ) : (
-                  <><Send size={18} /> Request This Worker</>
+                  <><Send size={18} /> {t('request_this_worker')}</>
                 )}
               </motion.button>
             </div>
 
             {/* Contact info */}
             <div className="glass-panel" style={{ padding: '24px' }}>
-              <h4 style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Contact Info</h4>
+              <h4 style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('contact_info')}</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ padding: '8px', background: 'var(--bg-elevated)', borderRadius: '8px' }}><Mail size={16} color="var(--accent-gold)" /></div>
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Email</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('email')}</div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{worker.email}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ padding: '8px', background: 'var(--bg-elevated)', borderRadius: '8px' }}><Phone size={16} color="var(--accent-emerald)" /></div>
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('phone_short')}</div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{worker.phone || 'N/A'}</div>
                   </div>
                 </div>
@@ -249,14 +251,14 @@ const WorkerPublicProfile = () => {
             {applications.length > 0 && (
               <div className="glass-panel" style={{ padding: '24px' }}>
                 <h4 style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  Applications to Your Jobs
+                  {t('applications_to_your_jobs')}
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {applications.map(app => (
                     <div key={app.application_id} style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                       <div style={{ marginBottom: '12px' }}>
                         <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '4px' }}>{app.job_title}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status: {app.status}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('status')}: {t(app.status)}</div>
                       </div>
                       {app.status === 'pending' ? (
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -268,7 +270,7 @@ const WorkerPublicProfile = () => {
                             className="btn-outline"
                             style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444', opacity: updatingStatus === app.application_id ? 0.6 : 1 }}
                           >
-                            {updatingStatus === app.application_id ? 'Processing...' : 'Reject'}
+                            {updatingStatus === app.application_id ? t('processing') : t('reject')}
                           </motion.button>
                           <motion.button
                             whileHover={{ scale: 1.02 }}
@@ -278,7 +280,7 @@ const WorkerPublicProfile = () => {
                             className="btn-premium"
                             style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(135deg, var(--accent-gold) 0%, #b8860b 100%)', color: '#000', opacity: updatingStatus === app.application_id ? 0.6 : 1 }}
                           >
-                            {updatingStatus === app.application_id ? 'Processing...' : 'Accept'}
+                            {updatingStatus === app.application_id ? t('processing') : t('accept')}
                           </motion.button>
                         </div>
                       ) : (
@@ -305,7 +307,7 @@ const WorkerPublicProfile = () => {
               style={{ padding: '28px' }}
             >
               <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Briefcase size={20} color="var(--accent-gold)" /> Skills & Expertise
+                <Briefcase size={20} color="var(--accent-gold)" /> {t('skills_expertise')}
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {skills.length > 0 ? skills.map(skill => (
@@ -320,7 +322,7 @@ const WorkerPublicProfile = () => {
                   }}>
                     {skill}
                   </span>
-                )) : <p style={{ color: 'var(--text-muted)' }}>No skills listed yet.</p>}
+                )) : <p style={{ color: 'var(--text-muted)' }}>{t('no_skills_listed')}</p>}
               </div>
             </motion.div>
 
@@ -334,7 +336,7 @@ const WorkerPublicProfile = () => {
                 style={{ padding: '28px' }}
               >
                 <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <FileText size={20} color="var(--accent-emerald)" /> Recommendation
+                  <FileText size={20} color="var(--accent-emerald)" /> {t('recommendation')}
                 </h3>
                 <div style={{
                   background: 'var(--bg-elevated)',
@@ -360,13 +362,13 @@ const WorkerPublicProfile = () => {
               style={{ padding: '28px' }}
             >
               <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <CreditCard size={20} color="var(--accent-gold)" /> Identity Documents
+                <CreditCard size={20} color="var(--accent-gold)" /> {t('identity_documents')}
               </h3>
 
               {/* National ID Number */}
               <div style={{ marginBottom: '28px' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-                  National ID Number
+                  {t('national_id_number')}
                 </div>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '14px',
@@ -384,7 +386,7 @@ const WorkerPublicProfile = () => {
                     </div>
                     {worker.national_id && (
                       <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                        <ShieldCheck size={12} /> Verified
+                        <ShieldCheck size={12} /> {t('verified')}
                       </div>
                     )}
                   </div>
@@ -396,29 +398,29 @@ const WorkerPublicProfile = () => {
                 {/* National ID Photo */}
                 <div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-                    National ID Photo
+                    {t('national_id_photo')}
                   </div>
                   {worker.id_photo_url ? (
                     <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                       <img
                         src={worker.id_photo_url}
-                        alt="National ID"
+                        alt={t('national_id_photo')}
                         style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
                         onClick={() => setSelectedImage(worker.id_photo_url)}
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                       />
                       <div style={{ display: 'none', height: '160px', background: 'var(--bg-elevated)', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
                         <CreditCard size={28} color="var(--text-muted)" />
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Preview unavailable</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('preview_unavailable')}</span>
                       </div>
                       <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(16,185,129,0.9)', borderRadius: '20px', padding: '3px 10px', fontSize: '0.7rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <ShieldCheck size={11} /> Verified
+                        <ShieldCheck size={11} /> {t('verified')}
                       </div>
                     </div>
                   ) : (
                     <div style={{ height: '160px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px dashed var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
                       <CreditCard size={28} color="var(--text-muted)" />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Not submitted</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('not_submitted')}</span>
                     </div>
                   )}
                 </div>
@@ -426,29 +428,29 @@ const WorkerPublicProfile = () => {
                 {/* Passport Photo */}
                 <div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-                    Passport Photo
+                    {t('passport_photo')}
                   </div>
                   {worker.passport_photo_url ? (
                     <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                       <img
                         src={worker.passport_photo_url}
-                        alt="Passport"
+                        alt={t('passport')}
                         style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
                         onClick={() => setSelectedImage(worker.passport_photo_url)}
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                       />
                       <div style={{ display: 'none', height: '160px', background: 'var(--bg-elevated)', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
                         <User size={28} color="var(--text-muted)" />
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Preview unavailable</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('preview_unavailable')}</span>
                       </div>
                       <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(16,185,129,0.9)', borderRadius: '20px', padding: '3px 10px', fontSize: '0.7rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <ShieldCheck size={11} /> Verified
+                        <ShieldCheck size={11} /> {t('verified')}
                       </div>
                     </div>
                   ) : (
                     <div style={{ height: '160px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px dashed var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
                       <User size={28} color="var(--text-muted)" />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Not submitted</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('not_submitted')}</span>
                     </div>
                   )}
                 </div>
@@ -459,10 +461,10 @@ const WorkerPublicProfile = () => {
                 <ShieldCheck size={20} color={worker.national_id && worker.id_photo_url && worker.passport_photo_url ? 'var(--accent-emerald)' : 'var(--text-muted)'} />
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                    {worker.national_id && worker.id_photo_url && worker.passport_photo_url ? 'Fully Identity Verified' : 'Partial Verification'}
+                    {worker.national_id && worker.id_photo_url && worker.passport_photo_url ? t('fully_verified') : t('partial_verification')}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {[worker.national_id ? 'ID Number ✓' : 'ID Number ✗', worker.id_photo_url ? 'ID Photo ✓' : 'ID Photo ✗', worker.passport_photo_url ? 'Passport ✓' : 'Passport ✗'].join('  ·  ')}
+                    {[`${t('id_number')} ${worker.national_id ? '✓' : '✗'}`, `${t('id_photo')} ${worker.id_photo_url ? '✓' : '✗'}`, `${t('passport')} ${worker.passport_photo_url ? '✓' : '✗'}`].join('  ·  ')}
                   </div>
                 </div>
               </div>
@@ -517,7 +519,7 @@ const WorkerPublicProfile = () => {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               src={selectedImage}
-              alt="Full size view"
+              alt={t('full_size_view')}
               onClick={(e) => e.stopPropagation()}
               style={{
                 maxWidth: '90vw',

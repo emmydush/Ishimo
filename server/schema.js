@@ -27,6 +27,7 @@ const TABLES = [
     full_name TEXT NOT NULL,
     phone TEXT NOT NULL,
     location TEXT DEFAULT '',
+    education TEXT DEFAULT '',
     status TEXT DEFAULT 'pending',
     availability TEXT DEFAULT 'available',
     profile_views INTEGER DEFAULT 0,
@@ -132,6 +133,7 @@ const TABLES = [
 const COLUMN_MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`,
   `ALTER TABLE workers ADD COLUMN IF NOT EXISTS location TEXT DEFAULT ''`,
+  `ALTER TABLE workers ADD COLUMN IF NOT EXISTS education TEXT DEFAULT ''`,
   `ALTER TABLE workers ADD COLUMN IF NOT EXISTS availability TEXT DEFAULT 'available'`,
   `ALTER TABLE workers ADD COLUMN IF NOT EXISTS profile_views INTEGER DEFAULT 0`,
   `ALTER TABLE worker_profiles ADD COLUMN IF NOT EXISTS additional_photo_path TEXT`,

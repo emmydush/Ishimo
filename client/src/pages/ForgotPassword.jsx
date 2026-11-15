@@ -3,11 +3,13 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -15,7 +17,7 @@ const ForgotPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) {
-      showToast('Please enter your email address', 'error');
+      showToast(t('err_enter_email'), 'error');
       return;
     }
 
@@ -38,10 +40,10 @@ const ForgotPassword = () => {
           console.log('Reset link:', `http://localhost:5173/reset-password?token=${data.token}`);
         }
       } else {
-        showToast(data.error || 'Failed to send reset link', 'error');
+        showToast(data.error || t('err_send_reset_link'), 'error');
       }
     } catch {
-      showToast('Cannot connect to the server', 'error');
+      showToast(t('cannot_connect_server'), 'error');
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ const ForgotPassword = () => {
             onClick={() => navigate('/login')}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.9rem' }}
           >
-            <ArrowLeft size={16} /> Back to Login
+            <ArrowLeft size={16} /> {t('back_to_login')}
           </motion.button>
         </div>
 
@@ -73,11 +75,11 @@ const ForgotPassword = () => {
           <div className="flex-center" style={{ width: '56px', height: '56px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '16px', margin: '0 auto 16px', color: 'var(--accent-gold)' }}>
             <Mail size={28} />
           </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Forgot Password?</h2>
+          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>{t('forgot_password')}</h2>
           <p style={{ color: 'var(--text-muted)' }}>
             {submitted 
-              ? 'Check your email for the reset link'
-              : 'Enter your email address and we\'ll send you a link to reset your password'
+              ? t('check_email_msg')
+              : t('enter_email_msg')
             }
           </p>
         </div>
@@ -85,11 +87,11 @@ const ForgotPassword = () => {
         {!submitted ? (
           <form onSubmit={handleSubmit}>
             <div className="input-group" style={{ marginBottom: '24px' }}>
-              <label className="input-label">Email Address</label>
+              <label className="input-label">{t('email_address')}</label>
               <input
                 type="email"
                 className="input-field"
-                placeholder="you@example.com"
+                placeholder={t('email_example')}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -105,7 +107,7 @@ const ForgotPassword = () => {
               type="submit"
               disabled={loading}
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? t('sending') : t('send_reset_link')}
             </motion.button>
           </form>
         ) : (
@@ -117,7 +119,7 @@ const ForgotPassword = () => {
               style={{ width: '100%', fontSize: '1.1rem' }}
               onClick={() => navigate('/login')}
             >
-              Back to Login
+              {t('back_to_login')}
             </motion.button>
           </div>
         )}

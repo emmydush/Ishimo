@@ -4,11 +4,13 @@ import Sidebar from '../components/Sidebar';
 import { ArrowLeft, Briefcase, MapPin, DollarSign, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config/api';
 
 export default function EmployerPostJob() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -24,9 +26,9 @@ export default function EmployerPostJob() {
     const userId = localStorage.getItem('userId');
     const role = localStorage.getItem('role');
     if (!userId || role !== 'employer') {
-      setError('Please log in as an employer to post a job.');
+      setError(t('err_login_employer_post'));
     }
-  }, []);
+  }, [t]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -42,20 +44,20 @@ export default function EmployerPostJob() {
     const role = localStorage.getItem('role');
 
     if (!employerId || role !== 'employer') {
-      setError('Please log in as an employer first.');
+      setError(t('err_login_employer_first'));
       return;
     }
 
     if (!formData.title.trim()) {
-      setError('Job Title is required.');
+      setError(t('err_job_title_required'));
       return;
     }
     if (!formData.description.trim()) {
-      setError('Job Description is required.');
+      setError(t('err_job_description_required'));
       return;
     }
     if (!formData.location.trim()) {
-      setError('Location is required.');
+      setError(t('err_location_required'));
       return;
     }
 
@@ -77,16 +79,16 @@ export default function EmployerPostJob() {
       const data = await res.json();
 
       if (res.ok) {
-        setSuccess('Job posted successfully!');
-        showToast('Job posted successfully! Workers can now see your listing.', 'success');
+        setSuccess(t('job_posted_success'));
+        showToast(t('job_posted_success_detail'), 'success');
         setTimeout(() => {
           navigate('/employer-dashboard', { state: { activeTab: 'jobs', newlyPosted: true } });
         }, 1400);
       } else {
-        throw new Error(data.error || 'Failed to post job');
+        throw new Error(data.error || t('err_post_job'));
       }
     } catch (err) {
-      const msg = err.message || 'Cannot connect to server. Ensure the backend is running.';
+      const msg = err.message || t('server_error');
       setError(msg);
       showToast(msg, 'error');
     } finally {
@@ -115,13 +117,13 @@ export default function EmployerPostJob() {
               fontSize: '0.95rem'
             }}
           >
-            <ArrowLeft size={18} /> Back to Dashboard
+            <ArrowLeft size={18} /> {t('back_to_dashboard')}
           </motion.button>
           
           <h1 style={{ fontSize: '2rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <Briefcase size={28} color="var(--accent-gold)" /> Post a New Job
+            <Briefcase size={28} color="var(--accent-gold)" /> {t('post_new_job')}
           </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Find the perfect verified worker for your household or business.</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('post_job_subtitle')}</p>
         </header>
 
         <motion.div
@@ -169,7 +171,7 @@ export default function EmployerPostJob() {
           <form onSubmit={handleSubmit}>
             <div className="input-group">
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Briefcase size={15} color="var(--accent-gold)" /> Job Title <span style={{ color: '#ef4444' }}>*</span>
+                <Briefcase size={15} color="var(--accent-gold)" /> {t('job_title')} <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -178,13 +180,13 @@ export default function EmployerPostJob() {
                 value={formData.title}
                 onChange={handleChange}
                 className="input-field"
-                placeholder="e.g. Full-time Nanny, Housekeeper, Caregiver"
+                placeholder={t('title_placeholder')}
               />
             </div>
 
             <div className="input-group">
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <FileText size={15} color="var(--accent-gold)" /> Job Description <span style={{ color: '#ef4444' }}>*</span>
+                <FileText size={15} color="var(--accent-gold)" /> {t('job_description')} <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <textarea
                 name="description"
@@ -194,13 +196,13 @@ export default function EmployerPostJob() {
                 onChange={handleChange}
                 className="input-field"
                 style={{ resize: 'vertical' }}
-                placeholder="Describe responsibilities, working hours, and requirements..."
+                placeholder={t('description_placeholder')}
               />
             </div>
 
             <div className="input-group">
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <MapPin size={15} color="var(--accent-gold)" /> Location <span style={{ color: '#ef4444' }}>*</span>
+                <MapPin size={15} color="var(--accent-gold)" /> {t('location')} <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -209,13 +211,13 @@ export default function EmployerPostJob() {
                 value={formData.location}
                 onChange={handleChange}
                 className="input-field"
-                placeholder="City, Neighborhood (e.g. Kigali, Nyarutarama)"
+                placeholder={t('location_placeholder_job')}
               />
             </div>
 
             <div className="input-group" style={{ marginBottom: '32px' }}>
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <DollarSign size={15} color="var(--accent-gold)" /> Salary Range (Optional)
+                <DollarSign size={15} color="var(--accent-gold)" /> {t('salary_range_optional')}
               </label>
               <input
                 type="text"
@@ -223,7 +225,7 @@ export default function EmployerPostJob() {
                 value={formData.salaryRange}
                 onChange={handleChange}
                 className="input-field"
-                placeholder="e.g. 150,000 RWF / month or Negotiable"
+                placeholder={t('salary_placeholder')}
               />
             </div>
 
@@ -235,7 +237,7 @@ export default function EmployerPostJob() {
               type="submit"
               disabled={loading || !!success}
             >
-              {loading ? 'Posting Job...' : success ? 'Job Posted!' : 'Post Job Now'}
+              {loading ? t('posting_job') : success ? t('job_posted') : t('post_job_now')}
             </motion.button>
           </form>
         </motion.div>
