@@ -363,6 +363,7 @@ const AdminDashboard = () => {
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
                   <th style={{ padding: '16px' }}>{t('id')}</th>
                   <th style={{ padding: '16px' }}>{t('name_email')}</th>
+                  <th style={{ padding: '16px' }}>{t('hired_by')}</th>
                   <th style={{ padding: '16px' }}>{t('location')}</th>
                   <th style={{ padding: '16px' }}>{t('status')}</th>
                   <th style={{ padding: '16px' }}>{t('availability')}</th>
@@ -376,6 +377,18 @@ const AdminDashboard = () => {
                     <td style={{ padding: '16px' }}>
                       <div style={{ fontWeight: 600 }}>{w.full_name}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{w.email}</div>
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      {w.employer_email ? (
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{w.employer_email}</div>
+                          {w.employer_phone && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{w.employer_phone}</div>}
+                          {w.job_title && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('job_title')}: {w.job_title}</div>}
+                          {w.hired_at && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(w.hired_at).toLocaleDateString()}</div>}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td style={{ padding: '16px' }}>{w.location || '—'}</td>
                     <td style={{ padding: '16px' }}>

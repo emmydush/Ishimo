@@ -1460,10 +1460,24 @@ app.put('/api/admin/users/:id/status', adminLimiter, adminAuth, (req, res) => {
 app.get('/api/admin/workers', adminLimiter, adminAuth, (req, res) => {
   const q = `
     SELECT w.user_id as id, w.full_name, w.phone, w.location, w.status, w.availability,
-           u.email, wp.skills, wp.experience
+           u.email, wp.skills, wp.experience,
+           hire.employer_email, hire.employer_phone, hire.job_title, hire.hired_at
     FROM workers w
     JOIN users u ON w.user_id = u.id
     LEFT JOIN worker_profiles wp ON w.user_id = wp.worker_id
+    LEFT JOIN LATERAL (
+      SELECT eu.email AS employer_email,
+             ep.phone AS employer_phone,
+             j.title AS job_title,
+             ja.created_at AS hired_at
+      FROM job_applications ja
+      JOIN jobs j ON ja.job_id = j.id
+      JOIN users eu ON j.employer_id = eu.id
+      LEFT JOIN employers ep ON j.employer_id = ep.user_id
+      WHERE ja.worker_id = w.user_id AND ja.status = 'hired'
+      ORDER BY ja.created_at DESC
+      LIMIT 1
+    ) hire ON true
     ORDER BY w.user_id DESC
   `;
   db.all(q, [], (err, rows) => {
