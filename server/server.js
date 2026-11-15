@@ -588,7 +588,7 @@ app.get('/api/workers', readLimiter, (req, res) => {
       return {
         id: row.id,
         name: row.name,
-        phone: row.phone || '',
+        phone: row.status === 'hired' ? '' : (row.phone || ''),
         role: 'Verified Professional',
         exp: row.experience ? row.experience + ' yrs' : '0 yrs',
         rating: row.rating_count ? Math.round(row.avg_rating * 10) / 10 : 0,
@@ -615,49 +615,58 @@ app.post('/api/jobs/request', writeLimiter, (req, res) => {
 
   if (!employerId || isNaN(employerId) || !workerId || isNaN(workerId)) return res.status(400).json({ error: 'Missing or invalid IDs.' });
 
-  // Check if a pending request already exists
-  db.get('SELECT * FROM job_requests WHERE employer_id = $1 AND worker_id = $2 AND status = \'pending\'', [employerId, workerId], (err, row) => {
+  // Reject requests for workers who are currently hired
+  db.get('SELECT status FROM workers WHERE user_id = $1', [workerId], (err, workerRow) => {
     if (err) return res.status(500).json({ error: 'Database error' });
-    if (row) return res.status(400).json({ error: 'Request already sent' });
+    if (!workerRow) return res.status(404).json({ error: 'Worker not found' });
+    if (workerRow.status === 'hired') {
+      return res.status(400).json({ error: 'This professional is currently hired and is not accepting new requests.' });
+    }
 
-    // Get employer and worker details for email notification
-    db.get(`
-      SELECT 
-        e.user_id as employer_id,
-        u.email as employer_email,
-        e.location as employer_location,
-        w.full_name as worker_name
-      FROM employers e
-      JOIN users u ON e.user_id = u.id
-      JOIN workers w ON w.user_id = $1
-      WHERE e.user_id = $2
-    `, [workerId, employerId], (err, details) => {
+    // Check if a pending request already exists
+    db.get('SELECT * FROM job_requests WHERE employer_id = $1 AND worker_id = $2 AND status = \'pending\'', [employerId, workerId], (err, row) => {
       if (err) return res.status(500).json({ error: 'Database error' });
+      if (row) return res.status(400).json({ error: 'Request already sent' });
 
-      db.run('INSERT INTO job_requests (employer_id, worker_id) VALUES ($1, $2)', [employerId, workerId], function(err) {
-        if (err) return res.status(500).json({ error: 'Failed to send request' });
-        
-        // Notify worker of new job request
-        createNotification(workerId, 'job_request', 'An employer has sent you a job request. Check your dashboard to accept or decline.');
-        logActivity(employerId, null, 'job_request', 'job', `Employer requested worker ${workerId}`, req.ip);
+      // Get employer and worker details for email notification
+      db.get(`
+        SELECT 
+          e.user_id as employer_id,
+          u.email as employer_email,
+          e.location as employer_location,
+          w.full_name as worker_name
+        FROM employers e
+        JOIN users u ON e.user_id = u.id
+        JOIN workers w ON w.user_id = $1
+        WHERE e.user_id = $2
+      `, [workerId, employerId], (err, details) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
 
-        // Send email notification to admin
-        db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
-          if (!err && adminRow && adminRow.value) {
-            const emailHtml = `
-              <h2>New Worker Request</h2>
-              <p>An employer has requested a worker on the Ishimo platform.</p>
-              <p><strong>Employer Email:</strong> ${details?.employer_email || 'N/A'}</p>
-              <p><strong>Employer Location:</strong> ${details?.employer_location || 'N/A'}</p>
-              <p><strong>Worker Name:</strong> ${details?.worker_name || 'N/A'}</p>
-              <p><strong>Request Time:</strong> ${new Date().toLocaleString()}</p>
-              <p>Please log in to the admin dashboard for more details.</p>
-            `;
-            sendEmail(adminRow.value, 'New Worker Request - Ishimo', emailHtml);
-          }
+        db.run('INSERT INTO job_requests (employer_id, worker_id) VALUES ($1, $2)', [employerId, workerId], function(err) {
+          if (err) return res.status(500).json({ error: 'Failed to send request' });
+          
+          // Notify worker of new job request
+          createNotification(workerId, 'job_request', 'An employer has sent you a job request. Check your dashboard to accept or decline.');
+          logActivity(employerId, null, 'job_request', 'job', `Employer requested worker ${workerId}`, req.ip);
+
+          // Send email notification to admin
+          db.get("SELECT value FROM admin_settings WHERE key = 'admin_notification_email'", [], (err, adminRow) => {
+            if (!err && adminRow && adminRow.value) {
+              const emailHtml = `
+                <h2>New Worker Request</h2>
+                <p>An employer has requested a worker on the Ishimo platform.</p>
+                <p><strong>Employer Email:</strong> ${details?.employer_email || 'N/A'}</p>
+                <p><strong>Employer Location:</strong> ${details?.employer_location || 'N/A'}</p>
+                <p><strong>Worker Name:</strong> ${details?.worker_name || 'N/A'}</p>
+                <p><strong>Request Time:</strong> ${new Date().toLocaleString()}</p>
+                <p>Please log in to the admin dashboard for more details.</p>
+              `;
+              sendEmail(adminRow.value, 'New Worker Request - Ishimo', emailHtml);
+            }
+          });
+
+          res.status(201).json({ success: true, message: 'Request sent successfully' });
         });
-
-        res.status(201).json({ success: true, message: 'Request sent successfully' });
       });
     });
   });
@@ -996,6 +1005,12 @@ app.get('/api/worker/:id/full-profile', readLimiter, (req, res) => {
       row.additional_photo_url = `${PUBLIC_BASE_URL}/uploads/${filename}`;
     }
 
+    // Hired workers cannot be contacted: strip contact details from the response
+    if (row.status === 'hired') {
+      row.phone = null;
+      row.email = null;
+    }
+
     // Get completed job count (accepted requests)
     db.get('SELECT COUNT(*) as completed_jobs FROM job_requests WHERE worker_id = $1 AND status = \'accepted\'', [workerId], (err2, countRow) => {
       row.completed_jobs = countRow ? countRow.completed_jobs : 0;
@@ -1160,6 +1175,13 @@ app.put('/api/applications/:id/status', writeLimiter, (req, res) => {
 
     db.run('UPDATE job_applications SET status = $1 WHERE id = $2', [status, applicationId], function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update status' });
+      // Keep the worker's own status in sync: a hired worker is no longer
+      // available for new requests or contact, and fired/left workers return to active.
+      if (status === 'hired') {
+        db.run("UPDATE workers SET status = 'hired', availability = 'busy' WHERE user_id = $1", [app.worker_id]);
+      } else if (status === 'fired' || status === 'left') {
+        db.run("UPDATE workers SET status = 'active', availability = 'available' WHERE user_id = $1", [app.worker_id]);
+      }
       // Notify worker of employer decision
       const action = status === 'accepted' ? 'accepted' : status === 'hired' ? 'hired you for' : status === 'fired' ? 'fired you from' : status === 'left' ? 'marked you as left on' : 'rejected';
       createNotification(app.worker_id, 'application_response', `An employer has ${action} your application for "${app.title}".`);

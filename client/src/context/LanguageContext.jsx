@@ -280,6 +280,8 @@ const translations = {
     clear_filters: 'Clear filters',
     workers_found: '{n} professionals found',
     no_workers_filter: 'No professionals match your filters.',
+    worker_currently_hired: 'Currently hired',
+    contact_private_hired: 'Contact details are private while this professional is hired.',
 
     // Entities & tables
     user: 'User',
@@ -941,6 +943,8 @@ const translations = {
     clear_filters: 'Effacer les filtres',
     workers_found: '{n} professionnels trouvés',
     no_workers_filter: 'Aucun professionnel ne correspond à vos filtres.',
+    worker_currently_hired: 'Actuellement embauché',
+    contact_private_hired: 'Les coordonnées sont privées tant que ce professionnel est embauché.',
 
     // Entités et tableaux
     user: 'Utilisateur',
@@ -1602,6 +1606,8 @@ const translations = {
     clear_filters: 'Hanagura gucunga',
     workers_found: 'Habonetse abakozi {n}',
     no_workers_filter: 'Nta mukozi uhuye n\'ibyo wahisemo.',
+    worker_currently_hired: 'Ubu akodeshwa',
+    contact_private_hired: 'Kumubarizaho birahishwa igihe akodeshwa.',
 
     // Ibintu n\'amashami
     user: 'Uyikoresha',

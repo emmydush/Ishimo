@@ -119,6 +119,7 @@ const WorkerPublicProfile = () => {
   if (!worker) return null;
 
   const skills = worker.skills ? worker.skills.split(',').map(s => s.trim()) : [];
+  const isHired = worker.status === 'hired';
 
   return (
     <div className="app-layout">
@@ -200,24 +201,30 @@ const WorkerPublicProfile = () => {
 
               {/* Request Button */}
               <motion.button
-                whileHover={!requested ? { scale: 1.03 } : {}}
-                whileTap={!requested ? { scale: 0.97 } : {}}
-                onClick={!requested ? handleRequest : undefined}
+                whileHover={!requested && !isHired ? { scale: 1.03 } : {}}
+                whileTap={!requested && !isHired ? { scale: 0.97 } : {}}
+                onClick={!requested && !isHired ? handleRequest : undefined}
                 className="btn-premium"
+                disabled={isHired}
+                title={isHired ? t('worker_currently_hired') : undefined}
                 style={{
                   width: '100%',
                   padding: '14px',
                   fontSize: '1rem',
                   background: requested
                     ? 'rgba(16,185,129,0.15)'
+                    : isHired
+                    ? 'var(--bg-elevated)'
                     : 'linear-gradient(135deg, var(--accent-gold) 0%, #b8952b 100%)',
-                  color: requested ? 'var(--accent-emerald)' : '#000',
-                  cursor: requested ? 'default' : 'pointer',
+                  color: requested ? 'var(--accent-emerald)' : isHired ? 'var(--text-muted)' : '#000',
+                  cursor: requested || isHired ? 'default' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                 }}
               >
                 {requested ? (
                   <><ShieldCheck size={18} /> {t('request_sent')}</>
+                ) : isHired ? (
+                  <><Briefcase size={18} /> {t('worker_currently_hired')}</>
                 ) : requesting ? (
                   t('sending')
                 ) : (
@@ -229,6 +236,12 @@ const WorkerPublicProfile = () => {
             {/* Contact info */}
             <div className="glass-panel" style={{ padding: '24px' }}>
               <h4 style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('contact_info')}</h4>
+              {isHired ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ padding: '8px', background: 'var(--bg-elevated)', borderRadius: '8px' }}><Briefcase size={16} color="var(--accent-gold)" /></div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{t('contact_private_hired')}</div>
+                </div>
+              ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ padding: '8px', background: 'var(--bg-elevated)', borderRadius: '8px' }}><Mail size={16} color="var(--accent-gold)" /></div>
@@ -245,6 +258,7 @@ const WorkerPublicProfile = () => {
                   </div>
                 </div>
               </div>
+              )}
             </div>
 
             {/* Applications from this worker */}

@@ -73,6 +73,10 @@ const EmployerDashboard = () => {
   const handleRequestWorker = async (workerId) => {
     const employerId = localStorage.getItem('userId');
     if (!employerId) return showToast(t('err_login_required_employer'), 'error');
+    const target = workers.find(w => w.id === workerId);
+    if (target && target.status === 'hired') {
+      return showToast(t('worker_currently_hired'), 'error');
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/jobs/request`, {
@@ -455,7 +459,7 @@ const EmployerDashboard = () => {
                     </div>
 
                     {/* Contact Icons */}
-                    {worker.phone && (
+                    {worker.phone && worker.status !== 'hired' && (
                       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
                         <motion.a
                           whileHover={{ scale: 1.05 }}
@@ -516,11 +520,13 @@ const EmployerDashboard = () => {
                         {t('view_profile')}
                       </motion.button>
                       <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        whileHover={worker.status === 'hired' ? {} : { scale: 1.02 }}
+                        whileTap={worker.status === 'hired' ? {} : { scale: 0.98 }}
                         className="btn-premium"
-                        style={{ flex: 1, padding: '11px' }}
+                        style={{ flex: 1, padding: '11px', opacity: worker.status === 'hired' ? 0.5 : 1, cursor: worker.status === 'hired' ? 'not-allowed' : 'pointer' }}
                         onClick={() => handleRequestWorker(worker.id)}
+                        disabled={worker.status === 'hired'}
+                        title={worker.status === 'hired' ? t('worker_currently_hired') : undefined}
                       >
                         {t('request')}
                       </motion.button>
